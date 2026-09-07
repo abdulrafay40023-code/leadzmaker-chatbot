@@ -63,14 +63,16 @@ export const Header: React.FC<HeaderProps> = ({
           <span>{soundEnabled ? 'Alerts ON' : 'Muted'}</span>
         </button>
 
-        {/* Get Widget Code */}
-        <button
-          onClick={onOpenEmbedModal}
-          className="flex items-center space-x-2 px-3.5 py-1.5 rounded-xl bg-dark-card hover:bg-dark-cardHover border border-dark-border text-white text-xs font-semibold transition-all"
-        >
-          <Code2 className="w-4 h-4 text-brand-secondary" />
-          <span>Get Code</span>
-        </button>
+        {/* Get Widget Code (Admin Only) */}
+        {((currentAgent?.role === 'admin') || ['abdulrafay40023@gmail.com', 'support@leadzmaker.com'].includes(currentAgent?.email?.toLowerCase() || '')) && (
+          <button
+            onClick={onOpenEmbedModal}
+            className="flex items-center space-x-2 px-3.5 py-1.5 rounded-xl bg-dark-card hover:bg-dark-cardHover border border-dark-border text-white text-xs font-semibold transition-all"
+          >
+            <Code2 className="w-4 h-4 text-brand-secondary" />
+            <span>Get Code</span>
+          </button>
+        )}
 
         {/* User Info */}
         {currentAgent && (

@@ -20,8 +20,13 @@ export default function LoginPage() {
           try {
             const parsed = JSON.parse(rawSession);
             const adminEmails = ['abdulrafay40023@gmail.com', 'support@leadzmaker.com'];
-            if (parsed?.status === 'approved' || parsed?.role === 'admin' || (parsed?.email && adminEmails.includes(parsed.email.toLowerCase()))) {
-              router.push('/dashboard');
+            const isAdm = parsed?.role === 'admin' || (parsed?.email && adminEmails.includes(parsed.email.toLowerCase()));
+            if (parsed?.status === 'approved' || isAdm) {
+              if (isAdm) {
+                router.push('/dashboard');
+              } else {
+                router.push('/dashboard/chats');
+              }
             }
           } catch {
             // ignore

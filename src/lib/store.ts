@@ -523,7 +523,15 @@ class GranularStore {
 
     const filteredConvs = isGlobal ? allConvs : allConvs.filter(c => c.property_slug === propertySlug);
     const activeConversations = filteredConvs.filter(c => {
-      return (c.messages && c.messages.length > 0) || !!c.visitor_name || c.mode === 'human' || c.status === 'pending_agent' || !!c.assigned_agent_id;
+      const msgs = c.messages || [];
+      const hasVisitorMsg = msgs.some(m => m.sender_type === 'visitor');
+      const hasAgentAssigned = !!c.assigned_agent_id || !!c.assigned_agent_name;
+      const isHandoff = c.mode === 'human' || c.status === 'pending_agent';
+      const vName = (c.visitor_name || '').trim().toLowerCase();
+      const hasRealLead = !!c.visitor_name && vName !== 'visitor' && vName !== 'system' && !!c.visitor_email;
+
+      // Never show blank/unfilled visitor chats with only the initial greeting
+      return hasVisitorMsg || (hasRealLead && msgs.length > 1) || hasAgentAssigned || isHandoff;
     });
 
     // Calculate per-website statistics for all configured websites

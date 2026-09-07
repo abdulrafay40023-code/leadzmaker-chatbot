@@ -38,6 +38,75 @@ const STAFF_NAMES = [
   'support'
 ];
 
+
+// Strict Email & Name Validation Helpers
+const DISPOSABLE_EMAIL_DOMAINS = new Set([
+  'mailinator.com', 'tempmail.com', '10minutemail.com', 'throwawaymail.com',
+  'guerrillamail.com', 'yopmail.com', 'sharklasers.com', 'dispostable.com',
+  'trashmail.com', 'getairmail.com', 'mytempemail.com', 'temp-mail.org',
+  'fakeinbox.com', 'emailondeck.com', 'mohmal.com', 'generator.email'
+]);
+
+const DUMMY_PREFIXES = new Set([
+  'test', 'asdf', '123', 'abc', 'dummy', 'fake', 'user', 'none', 'unknown',
+  'qwerty', 'email', 'sample', 'aaaa', 'admin', 'no', 'temp'
+]);
+
+function validateVisitorCredentials(name: string, email: string): { valid: boolean; error?: string } {
+  const cleanName = (name || '').trim();
+  const cleanEmail = (email || '').trim().toLowerCase();
+
+  // 1. Validate Name
+  if (!cleanName || cleanName.length < 2) {
+    return { valid: false, error: 'Please enter your full name (minimum 2 characters).' };
+  }
+  if (!/[a-zA-Z]/.test(cleanName)) {
+    return { valid: false, error: 'Name must contain alphabetical letters.' };
+  }
+  if (DUMMY_PREFIXES.has(cleanName.toLowerCase())) {
+    return { valid: false, error: 'Please enter your real full name.' };
+  }
+
+  // 2. Validate Email Format
+  const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
+  if (!emailRegex.test(cleanEmail)) {
+    return { valid: false, error: 'Please enter a valid, complete email address (e.g. name@gmail.com).' };
+  }
+
+  const parts = cleanEmail.split('@');
+  if (parts.length !== 2) {
+    return { valid: false, error: 'Invalid email format.' };
+  }
+
+  const [localPart, domainPart] = parts;
+  if (localPart.length < 2) {
+    return { valid: false, error: 'Email username must be at least 2 characters.' };
+  }
+
+  const domainParts = domainPart.split('.');
+  if (domainParts.length < 2) {
+    return { valid: false, error: 'Email domain must contain a valid extension (e.g. .com).' };
+  }
+
+  const tld = domainParts[domainParts.length - 1];
+  if (!tld || tld.length < 2 || !/^[a-zA-Z]+$/.test(tld)) {
+    return { valid: false, error: 'Please enter a valid top-level domain (e.g. .com, .net, .org).' };
+  }
+
+  // Check dummy prefixes & domains
+  if (DUMMY_PREFIXES.has(localPart)) {
+    return { valid: false, error: 'Please enter your real personal or business email address.' };
+  }
+  if (DISPOSABLE_EMAIL_DOMAINS.has(domainPart)) {
+    return { valid: false, error: 'Disposable and temporary email addresses are not accepted.' };
+  }
+  if (domainParts[0].length < 2) {
+    return { valid: false, error: 'Email domain name is too short.' };
+  }
+
+  return { valid: true };
+}
+
 function isStaffCredentials(email?: string, name?: string): boolean {
   const cleanEmail = (email || '').trim().toLowerCase();
   const cleanName = (name || '').trim().toLowerCase();
@@ -169,6 +238,7 @@ export const WidgetChat: React.FC<WidgetChatProps> = ({
   const [userName, setUserName] = useState('');
   const [userEmail, setUserEmail] = useState('');
   const [hasSubmittedLead, setHasSubmittedLead] = useState(false);
+  const [leadFormError, setLeadFormError] = useState('');
 
   const [messages, setMessages] = useState<Array<{ id: string; sender_type: string; sender_name: string; content: string; seq?: number; status?: 'sent' | 'delivered' | 'read'; created_at?: string }>>([
     {
@@ -659,10 +729,17 @@ export const WidgetChat: React.FC<WidgetChatProps> = ({
 
   const handleLeadSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setLeadFormError('');
     const formData = new FormData(e.currentTarget);
     const cleanName = (formData.get('name') as string || userName || '').trim();
-    const cleanEmail = (formData.get('email') as string || userEmail || '').trim();
-    if (!cleanName || !cleanEmail) return;
+    const cleanEmail = (formData.get('email') as string || userEmail || '').trim().toLowerCase();
+
+    // Strict Validation: Real name and verified email format
+    const validation = validateVisitorCredentials(cleanName, cleanEmail);
+    if (!validation.valid) {
+      setLeadFormError(validation.error || 'Please provide real details.');
+      return;
+    }
 
     // Strict Client vs Staff check: Agents & Admins cannot initiate chats as clients
     if (isStaffCredentials(cleanEmail, cleanName)) {
@@ -1217,6 +1294,12 @@ export const WidgetChat: React.FC<WidgetChatProps> = ({
               </div>
 
               <form onSubmit={handleLeadSubmit} className="space-y-3.5">
+                {leadFormError && (
+                  <div className="p-2.5 rounded-xl bg-red-500/15 border border-red-500/30 text-red-400 text-xs font-medium flex items-start space-x-2 animate-in fade-in">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span>{leadFormError}</span>
+                  </div>
+                )}
                 <div>
                   <label className="block text-[11px] font-medium text-gray-300 mb-1">Your Full Name</label>
                   <div className="relative">

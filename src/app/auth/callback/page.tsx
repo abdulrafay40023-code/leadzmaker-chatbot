@@ -18,6 +18,21 @@ export default function AuthCallbackPage() {
   useEffect(() => {
     const handleAuth = async () => {
       try {
+        // Direct parse from hash if redirected from OAuth fallback
+        if (typeof window !== 'undefined' && window.location.hash) {
+          const hashParams = new URLSearchParams(window.location.hash.substring(1));
+          const accessToken = hashParams.get('access_token');
+          const refreshToken = hashParams.get('refresh_token');
+          if (accessToken) {
+            try {
+              await supabase.auth.setSession({
+                access_token: accessToken,
+                refresh_token: refreshToken || ''
+              });
+            } catch {}
+          }
+        }
+
         const { data: { session }, error: sessionErr } = await supabase.auth.getSession();
 
         if (sessionErr || !session?.user?.email) {
@@ -61,7 +76,13 @@ export default function AuthCallbackPage() {
         setStep('pending');
       } else if (data.status === 'approved') {
         localStorage.setItem('lm_agent_session', JSON.stringify(data.agent));
-        router.push('/dashboard');
+        const adminEmails = ['abdulrafay40023@gmail.com', 'support@leadzmaker.com'];
+        const isAdm = data.agent?.role === 'admin' || (data.agent?.email && adminEmails.includes(data.agent.email.toLowerCase()));
+        if (isAdm) {
+          router.push('/dashboard');
+        } else {
+          router.push('/dashboard/chats');
+        }
       }
       setLoading(false);
     };
@@ -135,7 +156,13 @@ export default function AuthCallbackPage() {
           if (approvedAgent) {
             localStorage.setItem('lm_agent_session', JSON.stringify(approvedAgent));
           }
-          router.push('/dashboard');
+          const adminEmails = ['abdulrafay40023@gmail.com', 'support@leadzmaker.com'];
+          const isAdm = approvedAgent?.role === 'admin' || (approvedEmail && adminEmails.includes(approvedEmail.toLowerCase()));
+          if (isAdm) {
+            router.push('/dashboard');
+          } else {
+            router.push('/dashboard/chats');
+          }
         }
       })
       .subscribe();

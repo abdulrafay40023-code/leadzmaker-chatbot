@@ -66,7 +66,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
   ];
 
-  const visibleItems = navItems.filter(item => !item.adminOnly || isAdmin);
+  // Strict Agent Access Control: Non-admins ONLY see Live Chatbot
+  const visibleItems = isAdmin 
+    ? navItems 
+    : [
+        {
+          name: 'Live Chatbot',
+          href: '/dashboard/chats',
+          icon: MessageSquare,
+          badge: chatCount > 0 ? chatCount : null,
+          badgeColor: 'bg-rose-500 text-white shadow-md shadow-rose-500/30 font-bold animate-pulse',
+          adminOnly: false
+        }
+      ];
 
   return (
     <aside className="w-60 bg-[#0a0f1d] border-r border-dark-border flex flex-col justify-between select-none shrink-0 h-full overflow-y-auto">

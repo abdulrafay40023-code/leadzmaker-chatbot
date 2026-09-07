@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   Users, MessageSquare, Eye, Radio, ArrowRight, RotateCcw,
@@ -9,6 +10,7 @@ import {
 import { useLiveSync } from '@/context/LiveSyncContext';
 
 export default function OverviewDashboard() {
+  const router = useRouter();
   const {
     liveVisitors,
     conversations,
@@ -33,9 +35,14 @@ export default function OverviewDashboard() {
       if (rawSession) {
         const parsed = JSON.parse(rawSession);
         setCurrentAgent(parsed);
+        const adminEmails = ['abdulrafay40023@gmail.com', 'support@leadzmaker.com'];
+        const isAdm = parsed.role === 'admin' || (parsed.email && adminEmails.includes(parsed.email.toLowerCase()));
+        if (!isAdm) {
+          router.push('/dashboard/chats');
+        }
       }
     } catch {}
-  }, []);
+  }, [router]);
 
   const adminEmails = ['abdulrafay40023@gmail.com', 'support@leadzmaker.com'];
   const isAdmin = !currentAgent || currentAgent.role === 'admin' || (currentAgent.email && adminEmails.includes(currentAgent.email.toLowerCase()));

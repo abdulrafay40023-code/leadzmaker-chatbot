@@ -13,20 +13,6 @@ export async function POST(req: NextRequest) {
     const cleanEmail = email.toLowerCase().trim();
     const isAdmin = ADMIN_EMAILS.includes(cleanEmail) || cleanEmail === 'abdulrafay40023@gmail.com' || cleanEmail === 'support@leadzmaker.com';
 
-    // Blacklisted legacy users
-    const BLOCKED_EMAILS = [
-      'garryamelia6265@gmail.com',
-      'tzafar04@gmail.com',
-      'annusraees@gmail.com',
-      'hsalon680@gmail.com',
-      'hsalon580@gmail.com'
-    ];
-    if (BLOCKED_EMAILS.includes(cleanEmail)) {
-      return NextResponse.json({
-        error: 'Access denied: Account permanently removed.',
-        isBlocked: true
-      }, { status: 403 });
-    }
 
     // 1. Sole Master Admin: Abdul Rafay is always instant approved as Admin
     if (isAdmin) {

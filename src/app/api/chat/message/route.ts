@@ -98,6 +98,14 @@ export async function POST(req: NextRequest) {
     const hasClaimSystemMsg = (conv?.messages || []).some(m => m.sender_type === 'system' && m.content.includes('claimed and joined'));
     const isHumanMode = conv?.mode === 'human' || isHumanConnected || hasAgentAssigned || hasAgentMessages || hasClaimSystemMsg;
 
+    if (senderType === 'visitor' && senderEmail) {
+      const cleanEmail = senderEmail.trim().toLowerCase();
+      const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
+      if (!emailRegex.test(cleanEmail)) {
+        return NextResponse.json({ error: 'Invalid email address format' }, { status: 400 });
+      }
+    }
+
     if (!conv) {
       // Strict 2-chat limit per visitor to prevent spam & abuse
       if (senderEmail || visitorToken) {
@@ -110,11 +118,15 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      const initialVisitorName = (senderType === 'visitor' && senderName && senderName !== 'You')
+        ? senderName
+        : 'Visitor';
+
       conv = {
         id: convId,
         property_slug: effectiveSlug,
         visitor_id: visitorToken || convId,
-        visitor_name: senderName || 'Visitor',
+        visitor_name: initialVisitorName,
         visitor_email: senderEmail || undefined,
         mode: isHumanMode ? 'human' : 'ai',
         status: isHumanMode ? (hasAgentAssigned ? 'active' : 'pending_agent') : 'active',
@@ -146,7 +158,9 @@ export async function POST(req: NextRequest) {
         if (!conv.status) conv.status = hasAgentAssigned ? 'active' : 'pending_agent';
       }
       if (senderType === 'visitor') {
-        if (senderName && senderName !== 'Visitor' && senderName !== 'You') conv.visitor_name = senderName;
+        if (senderName && senderName !== 'Visitor' && senderName !== 'You' && senderName !== 'System') {
+          conv.visitor_name = senderName;
+        }
         if (senderEmail) conv.visitor_email = senderEmail;
       }
     }
