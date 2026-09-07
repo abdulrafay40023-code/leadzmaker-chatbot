@@ -30,10 +30,19 @@
     return null;
   }
 
-  var explicitSlug = scriptEl && scriptEl.getAttribute('data-property-slug');
+  var explicitSlug = scriptEl && (scriptEl.getAttribute('data-property-slug') || scriptEl.getAttribute('data-property'));
   var detectedSlug = detectSlugFromHostname(window.location.hostname);
   var propertySlug = explicitSlug || detectedSlug || 'leadzmaker';
-  var isAdmin = window.location.pathname.startsWith('/dashboard') || window.location.pathname.startsWith('/admin');
+
+  // Only suppress floating widget if already inside an iframe or directly on the admin livechat hub
+  var isInsideIframe = false;
+  try {
+    isInsideIframe = window.self !== window.top;
+  } catch (e) {
+    isInsideIframe = true;
+  }
+  var isLiveChatAdmin = window.location.pathname === '/admin/livechat';
+  var suppressWidget = isInsideIframe || isLiveChatAdmin;
 
   // PER-TAB SESSION ID GENERATED STRICTLY ONCE PER TAB
   var tabSessionId;
@@ -62,7 +71,7 @@
   }
 
   function sendTracking(isNew) {
-    if (isAdmin) return;
+    if (suppressWidget) return;
     try {
       var currentUrl = window.location.href || window.location.pathname || '/';
       var referrer = document.referrer || 'Direct';
@@ -86,7 +95,7 @@
   sendTracking(true);
 
   function sendPing() {
-    if (isAdmin) return;
+    if (suppressWidget) return;
     try {
       var currentPath = window.location.pathname || '/';
       fetch(serverOrigin + '/api/visitor/ping', {
@@ -132,7 +141,7 @@
 
   // Instant departure notification on tab close / mobile swipe
   function handleOffline() {
-    if (isAdmin) return;
+    if (suppressWidget) return;
     try {
       var payload = JSON.stringify({
         sessionId: tabSessionId,
@@ -159,10 +168,10 @@
   window.addEventListener('unload', handleOffline);
 
   // Embed Live Chat Iframe
-  if (!isAdmin) {
+  if (!suppressWidget) {
     var iframe = document.createElement('iframe');
     iframe.id = 'leadzmaker-livechat-iframe';
-    iframe.src = serverOrigin + '/widget?property=' + encodeURIComponent(propertySlug) + '&page=' + encodeURIComponent(window.location.href || window.location.pathname || '/') + '&ref=' + encodeURIComponent(document.referrer || 'Direct') + '&session=' + encodeURIComponent(tabSessionId) + '&token=' + encodeURIComponent(visitorToken) + '&_v=20260904_2';
+    iframe.src = serverOrigin + '/widget?property=' + encodeURIComponent(propertySlug) + '&page=' + encodeURIComponent(window.location.href || window.location.pathname || '/') + '&ref=' + encodeURIComponent(document.referrer || 'Direct') + '&session=' + encodeURIComponent(tabSessionId) + '&token=' + encodeURIComponent(visitorToken) + '&_v=20260907_3';
     iframe.style.position = 'fixed';
     iframe.style.bottom = '20px';
     iframe.style.right = '20px';

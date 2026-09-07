@@ -32,39 +32,14 @@ export const AgentAvatar: React.FC<AvatarProps> = ({
   }
 
   if (effectiveType === 'ai') {
-    // Cute Professional Female AI Agent Avatar (Matching Reference Bitmoji Girl)
     return (
-      <div className={`relative rounded-full bg-gradient-to-tr from-purple-500 via-pink-500 to-rose-400 p-[1.5px] shadow-md flex items-center justify-center flex-shrink-0 ${sizeMap[size]} ${className}`}>
-        <div className="w-full h-full rounded-full bg-[#111827] flex items-center justify-center overflow-hidden">
-          <svg viewBox="0 0 100 100" className="w-full h-full" fill="none" xmlns="http://www.w3.org/2000/svg">
-            {/* Background */}
-            <circle cx="50" cy="50" r="50" fill="#1e1b4b" />
-            {/* Flower Crown */}
-            <circle cx="35" cy="22" r="5" fill="#ec4899" />
-            <circle cx="50" cy="18" r="6" fill="#f43f5e" />
-            <circle cx="65" cy="22" r="5" fill="#fb7185" />
-            <circle cx="42" cy="19" r="4" fill="#fbbf24" />
-            <circle cx="58" cy="19" r="4" fill="#38bdf8" />
-            {/* Hair */}
-            <path d="M22 45C22 25 32 15 50 15C68 15 78 25 78 45C78 60 76 75 74 85C66 87 34 87 26 85C24 75 22 60 22 45Z" fill="#1f150f" />
-            {/* Face */}
-            <path d="M30 45C30 32 40 25 50 25C60 25 70 32 70 45C70 60 62 70 50 70C38 70 30 60 30 45Z" fill="#fed7aa" />
-            {/* Eyes */}
-            <ellipse cx="42" cy="45" rx="3.5" ry="4" fill="#1e293b" />
-            <ellipse cx="58" cy="45" rx="3.5" ry="4" fill="#1e293b" />
-            <circle cx="43" cy="43.5" r="1.2" fill="#ffffff" />
-            <circle cx="59" cy="43.5" r="1.2" fill="#ffffff" />
-            {/* Eyebrows */}
-            <path d="M38 38C41 37 44 38 45 40" stroke="#1f150f" strokeWidth="1.5" strokeLinecap="round" />
-            <path d="M62 38C59 37 56 38 55 40" stroke="#1f150f" strokeWidth="1.5" strokeLinecap="round" />
-            {/* Smile / Lips */}
-            <path d="M44 56C47 59 53 59 56 56" stroke="#e11d48" strokeWidth="2" strokeLinecap="round" />
-            {/* Cheeks blush */}
-            <circle cx="36" cy="52" r="3" fill="#fb7185" opacity="0.6" />
-            <circle cx="64" cy="52" r="3" fill="#fb7185" opacity="0.6" />
-            {/* Collar / Outfit */}
-            <path d="M28 85C32 74 42 72 50 72C58 72 68 74 72 85C65 92 35 92 28 85Z" fill="#4f46e5" />
-          </svg>
+      <div className={`relative rounded-full bg-gradient-to-tr from-lime-500 to-emerald-400 p-[1.5px] shadow-md flex items-center justify-center flex-shrink-0 ${sizeMap[size]} ${className}`}>
+        <div className="w-full h-full rounded-full bg-black flex items-center justify-center overflow-hidden">
+          <img
+            src="/lm-logo.png"
+            alt="LeadzMaker AI"
+            className="w-full h-full object-cover rounded-full"
+          />
         </div>
       </div>
     );
