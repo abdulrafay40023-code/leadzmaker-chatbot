@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { granularStore, StoreAgent, ADMIN_EMAILS } from '@/lib/store';
+import { granularStore, ADMIN_EMAILS } from '@/lib/store';
 
 export async function POST(req: NextRequest) {
   try {
@@ -9,31 +9,31 @@ export async function POST(req: NextRequest) {
     }
 
     const cleanEmail = email.toLowerCase().trim();
-    const isAllowedAdmin = ADMIN_EMAILS.includes(cleanEmail) || cleanEmail === 'abdulrafay40023@gmail.com' || cleanEmail === 'support@leadzmaker.com';
+    const isAdmin = ADMIN_EMAILS.includes(cleanEmail) || cleanEmail === 'abdulrafay40023@gmail.com' || cleanEmail === 'support@leadzmaker.com';
 
-    if (!isAllowedAdmin) {
+    if (isAdmin) {
+      const admin = await granularStore.getAgent(cleanEmail);
+      if (admin) {
+        admin.is_online = true;
+        admin.last_seen_at = new Date().toISOString();
+        await granularStore.saveAgent(admin);
+      }
+      return NextResponse.json({ success: true, isOnline: true });
+    }
+
+    const agent = await granularStore.getAgent(cleanEmail);
+    if (!agent || agent.status !== 'approved') {
       return NextResponse.json({
-        error: 'Access Denied: Only Abdul Rafay is authorized.',
-        status: 'rejected'
+        error: 'Access revoked or pending approval',
+        status: agent?.status || 'pending'
       }, { status: 403 });
     }
 
-    const adminAgent: StoreAgent = {
-      id: 'agent_abdulrafay_admin',
-      email: 'abdulrafay40023@gmail.com',
-      full_name: 'Abdul Rafay',
-      phone: '+92 300 1234567',
-      role: 'admin',
-      status: 'approved',
-      is_online: true,
-      last_seen_at: new Date().toISOString(),
-      created_at: new Date().toISOString()
-    };
+    agent.is_online = true;
+    agent.last_seen_at = new Date().toISOString();
+    await granularStore.saveAgent(agent);
 
-    granularStore.agents.clear();
-    granularStore.agents.set(adminAgent.email.toLowerCase(), adminAgent);
-
-    return NextResponse.json({ success: true, agent: adminAgent });
+    return NextResponse.json({ success: true, agent });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Server error';
     return NextResponse.json({ error: message }, { status: 500 });

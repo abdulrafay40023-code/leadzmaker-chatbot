@@ -624,9 +624,46 @@ class GranularStore {
       last_seen_at: new Date().toISOString(),
       created_at: new Date().toISOString()
     };
-    this.agents.clear();
-    this.agents.set(adminAbdulRafay.email.toLowerCase(), adminAbdulRafay);
-    return [adminAbdulRafay];
+
+    const BLOCKED_EMAILS = [
+      'garryamelia6265@gmail.com',
+      'tzafar04@gmail.com',
+      'annusraees@gmail.com',
+      'hsalon680@gmail.com',
+      'hsalon580@gmail.com'
+    ];
+
+    const agentMap = new Map<string, StoreAgent>();
+    agentMap.set(adminAbdulRafay.email.toLowerCase(), adminAbdulRafay);
+
+    try {
+      const { data: aFiles } = await supabaseAdmin.storage.from(BUCKET).list('agents');
+      if (aFiles && aFiles.length > 0) {
+        await Promise.all(aFiles.map(async (f) => {
+          try {
+            const { data } = await supabaseAdmin.storage.from(BUCKET).download(`agents/${f.name}`);
+            if (data) {
+              const text = await parseStorageData(data);
+              if (text) {
+                const a: StoreAgent = JSON.parse(text);
+                const cleanEmail = (a.email || '').toLowerCase().trim();
+                if (!cleanEmail || BLOCKED_EMAILS.includes(cleanEmail)) return;
+
+                if (cleanEmail === 'abdulrafay40023@gmail.com' || cleanEmail === 'support@leadzmaker.com') {
+                  a.role = 'admin';
+                  a.status = 'approved';
+                } else {
+                  a.role = 'agent'; // Strictly agent, never admin!
+                }
+                agentMap.set(cleanEmail, a);
+              }
+            }
+          } catch {}
+        }));
+      }
+    } catch {}
+
+    return Array.from(agentMap.values());
   }
 
   async getAgent(agentId: string): Promise<StoreAgent | null> {
@@ -644,7 +681,8 @@ class GranularStore {
         created_at: new Date().toISOString()
       };
     }
-    return null;
+    const all = await this.getAllAgents();
+    return all.find(a => a.id === agentId || a.email.toLowerCase() === clean) || null;
   }
 
   async saveAgent(agent: StoreAgent): Promise<void> {
