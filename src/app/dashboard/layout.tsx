@@ -36,26 +36,21 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       if (ssoEmail) {
         const adminEmails = ['abdulrafay40023@gmail.com', 'support@leadzmaker.com'];
         const cleanEmail = ssoEmail.toLowerCase().trim();
-        const isAdm = ssoRole === 'admin' || adminEmails.includes(cleanEmail);
-        const ssoAgent = {
-          id: `agent_${cleanEmail.replace(/[^a-z0-9]/g, '_')}`,
-          email: cleanEmail,
-          full_name: ssoName || cleanEmail.split('@')[0],
-          role: isAdm ? 'admin' : (ssoRole || 'agent'),
-          status: 'approved'
-        };
-        localStorage.setItem('lm_agent_session', JSON.stringify(ssoAgent));
-        setCurrentAgent(ssoAgent);
-
-        fetch('/api/agent/ping', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: ssoAgent.email,
-            status: 'online'
-          })
-        }).catch(() => {});
-        return;
+        if (adminEmails.includes(cleanEmail)) {
+          const ssoAgent = {
+            id: 'agent_abdulrafay_admin',
+            email: cleanEmail,
+            full_name: ssoName || 'Abdul Rafay',
+            role: 'admin',
+            status: 'approved'
+          };
+          localStorage.setItem('lm_agent_session', JSON.stringify(ssoAgent));
+          setCurrentAgent(ssoAgent);
+          return;
+        } else {
+          router.push('/login');
+          return;
+        }
       }
     }
 

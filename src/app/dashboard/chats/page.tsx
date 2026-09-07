@@ -41,20 +41,21 @@ export default function ActiveChatsPage() {
       if (ssoEmail) {
         const adminEmails = ['abdulrafay40023@gmail.com', 'support@leadzmaker.com'];
         const cleanEmail = ssoEmail.toLowerCase().trim();
-        const isAdm = ssoRole === 'admin' || adminEmails.includes(cleanEmail);
-        const ssoAgent = {
-          id: `agent_${cleanEmail.replace(/[^a-z0-9]/g, '_')}`,
-          email: cleanEmail,
-          full_name: ssoName || cleanEmail.split('@')[0],
-          role: isAdm ? 'admin' : (ssoRole || 'agent'),
-          status: 'approved'
-        };
-        localStorage.setItem('lm_agent_session', JSON.stringify(ssoAgent));
-        setCurrentAgent(ssoAgent);
-        const key = getSelectedKey(cleanEmail);
-        const saved = localStorage.getItem(key);
-        if (saved) setSelectedChatId(saved);
-        return;
+        if (adminEmails.includes(cleanEmail)) {
+          const ssoAgent = {
+            id: 'agent_abdulrafay_admin',
+            email: cleanEmail,
+            full_name: ssoName || 'Abdul Rafay',
+            role: 'admin',
+            status: 'approved'
+          };
+          localStorage.setItem('lm_agent_session', JSON.stringify(ssoAgent));
+          setCurrentAgent(ssoAgent);
+          const key = getSelectedKey(cleanEmail);
+          const saved = localStorage.getItem(key);
+          if (saved) setSelectedChatId(saved);
+          return;
+        }
       }
     } catch {}
 
