@@ -23,7 +23,7 @@ export default function ChatsPage() {
         const ssoName = urlParams.get('sso_name');
         const ssoRole = urlParams.get('sso_role');
         if (ssoEmail) {
-          const adminEmails = ['abdulrafay40023@gmail.com', 'support@leadzmaker.com', 'garryamelia6265@gmail.com', 'tzafar04@gmail.com', 'annusraees@gmail.com'];
+          const adminEmails = ['abdulrafay40023@gmail.com', 'support@leadzmaker.com'];
           const cleanEmail = ssoEmail.toLowerCase().trim();
           const isAdm = ssoRole === 'admin' || adminEmails.includes(cleanEmail);
           const ssoAgent = {
@@ -40,7 +40,7 @@ export default function ChatsPage() {
         const rawSession = localStorage.getItem('lm_agent_session');
         if (rawSession) {
           const parsed = JSON.parse(rawSession);
-          const adminEmails = ['abdulrafay40023@gmail.com', 'support@leadzmaker.com', 'garryamelia6265@gmail.com', 'tzafar04@gmail.com', 'annusraees@gmail.com'];
+          const adminEmails = ['abdulrafay40023@gmail.com', 'support@leadzmaker.com'];
           if (parsed?.email && adminEmails.includes(parsed.email.toLowerCase())) {
             parsed.role = 'admin';
           }
@@ -85,7 +85,7 @@ export default function ChatsPage() {
       const ssoName = urlParams.get('sso_name');
       const ssoRole = urlParams.get('sso_role');
       if (ssoEmail) {
-        const adminEmails = ['abdulrafay40023@gmail.com', 'support@leadzmaker.com', 'garryamelia6265@gmail.com', 'tzafar04@gmail.com', 'annusraees@gmail.com'];
+        const adminEmails = ['abdulrafay40023@gmail.com', 'support@leadzmaker.com'];
         const cleanEmail = ssoEmail.toLowerCase().trim();
         const isAdm = ssoRole === 'admin' || adminEmails.includes(cleanEmail);
         const ssoAgent = {
@@ -140,7 +140,7 @@ export default function ChatsPage() {
     return savedId !== lastMsg.id && savedId !== 'all';
   };
 
-  const adminEmails = ['abdulrafay40023@gmail.com', 'support@leadzmaker.com', 'garryamelia6265@gmail.com', 'tzafar04@gmail.com', 'annusraees@gmail.com'];
+  const adminEmails = ['abdulrafay40023@gmail.com', 'support@leadzmaker.com'];
   const isAdmin = currentAgent.role === 'admin' || (currentAgent.email && adminEmails.includes(currentAgent.email.toLowerCase()));
 
   // Working agents rule: Only visible when visitor requested a real human agent OR already claimed by this agent
@@ -338,7 +338,7 @@ export default function ChatsPage() {
         </div>
       ) : (
         <LiveChatConsole
-          currentAgent={currentAgent || { id: 'agent_garry_admin', full_name: 'Garry Amelia', email: 'garryamelia6265@gmail.com', role: 'admin' }}
+          currentAgent={currentAgent || { id: 'agent_abdulrafay_admin', full_name: 'Abdul Rafay', email: 'abdulrafay40023@gmail.com', role: 'admin' }}
           selectedChatId={selectedChatId}
           conversations={filteredConversations as unknown as ChatSession[]}
           onSelectChat={(id) => {

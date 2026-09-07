@@ -3,68 +3,37 @@ import { granularStore, StoreAgent, ADMIN_EMAILS } from '@/lib/store';
 
 export async function POST(req: NextRequest) {
   try {
-    const { email, fullName, phone, role = 'agent' } = await req.json();
+    const { email } = await req.json();
     if (!email) {
       return NextResponse.json({ error: 'Email required' }, { status: 400 });
     }
 
     const cleanEmail = email.toLowerCase().trim();
-    const isAdmin = ADMIN_EMAILS.includes(cleanEmail) || role === 'admin';
-    const nowIso = new Date().toISOString();
+    const isAllowedAdmin = ADMIN_EMAILS.includes(cleanEmail) || cleanEmail === 'abdulrafay40023@gmail.com' || cleanEmail === 'support@leadzmaker.com';
 
-    let defaultName = 'Abdul Rafay';
-    let defaultId = 'agent_' + Math.random().toString(36).substring(2, 9);
-    if (cleanEmail === 'garryamelia6265@gmail.com') {
-      defaultName = 'Garry Amelia';
-      defaultId = 'agent_garry_admin';
-    } else if (cleanEmail === 'tzafar04@gmail.com') {
-      defaultName = 'T Zafar';
-      defaultId = 'agent_tzafar_admin';
-    } else if (cleanEmail === 'annusraees@gmail.com') {
-      defaultName = 'Annus Raees';
-      defaultId = 'agent_annus_admin';
+    if (!isAllowedAdmin) {
+      return NextResponse.json({
+        error: 'Access Denied: Only Abdul Rafay is authorized.',
+        status: 'rejected'
+      }, { status: 403 });
     }
 
-    let agent = granularStore.agents.get(cleanEmail);
-    if (!agent) {
-      agent = (await granularStore.getAgent(cleanEmail)) || undefined;
-    }
+    const adminAgent: StoreAgent = {
+      id: 'agent_abdulrafay_admin',
+      email: 'abdulrafay40023@gmail.com',
+      full_name: 'Abdul Rafay',
+      phone: '+92 300 1234567',
+      role: 'admin',
+      status: 'approved',
+      is_online: true,
+      last_seen_at: new Date().toISOString(),
+      created_at: new Date().toISOString()
+    };
 
-    if (!isAdmin) {
-      if (!agent || agent.status !== 'approved') {
-        return NextResponse.json({
-          success: false,
-          error: 'Agent access revoked or approval required',
-          status: agent?.status || 'pending'
-        }, { status: 403 });
-      }
-    }
+    granularStore.agents.clear();
+    granularStore.agents.set(adminAgent.email.toLowerCase(), adminAgent);
 
-    if (!agent) {
-      agent = {
-        id: defaultId,
-        email: cleanEmail,
-        full_name: fullName || defaultName,
-        phone: phone || '+1 (555) 019-2834',
-        role: 'admin',
-        status: 'approved',
-        is_online: true,
-        last_seen_at: nowIso,
-        created_at: nowIso
-      };
-    } else {
-      agent.is_online = true;
-      agent.last_seen_at = nowIso;
-      if (isAdmin) {
-        agent.role = 'admin';
-        agent.status = 'approved';
-      }
-      if (fullName) agent.full_name = fullName;
-    }
-
-    await granularStore.saveAgent(agent);
-
-    return NextResponse.json({ success: true, agent });
+    return NextResponse.json({ success: true, agent: adminAgent });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Server error';
     return NextResponse.json({ error: message }, { status: 500 });

@@ -40,7 +40,7 @@ export default function DemoPage() {
             <span>Live • Connected to LiveChat Hub</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-black text-dark-text">
-            Good afternoon, Garry
+            Good afternoon, Abdul Rafay
           </h1>
           <p className="text-xs text-dark-muted mt-1">
             Here is how your sales pipeline is performing today.

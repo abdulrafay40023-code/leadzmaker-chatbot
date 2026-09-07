@@ -73,8 +73,7 @@ export interface StoreAgent {
 
 export const ADMIN_EMAILS: string[] = [
   'abdulrafay40023@gmail.com',
-  'support@leadzmaker.com',
-  'leadzmaker@gmail.com'
+  'support@leadzmaker.com'
 ];
 
 export const STAFF_EMAILS: string[] = [
@@ -219,67 +218,19 @@ class GranularStore {
   private storageLoaded = false;
 
   constructor() {
-    const adminGarry: StoreAgent = {
-      id: 'agent_garry_admin',
-      email: 'garryamelia6265@gmail.com',
-      full_name: 'Garry Amelia',
-      phone: '+1 (555) 019-2834',
-      role: 'admin',
-      status: 'approved',
-      is_online: true,
-      last_seen_at: new Date().toISOString(),
-      created_at: new Date().toISOString()
-    };
-    const adminTzafar: StoreAgent = {
-      id: 'agent_tzafar_admin',
-      email: 'tzafar04@gmail.com',
-      full_name: 'T Zafar',
-      phone: '+1 (555) 019-2835',
-      role: 'admin',
-      status: 'approved',
-      is_online: true,
-      last_seen_at: new Date().toISOString(),
-      created_at: new Date().toISOString()
-    };
-    const adminAnnus: StoreAgent = {
-      id: 'agent_annus_admin',
-      email: 'annusraees@gmail.com',
-      full_name: 'Annus Raees',
-      phone: '+1 (555) 019-2836',
-      role: 'admin',
-      status: 'approved',
-      is_online: true,
-      last_seen_at: new Date().toISOString(),
-      created_at: new Date().toISOString()
-    };
-    const agent: StoreAgent = {
-      id: 'agent_abdul_rafay',
+    const adminAbdulRafay: StoreAgent = {
+      id: 'agent_abdulrafay_admin',
       email: 'abdulrafay40023@gmail.com',
       full_name: 'Abdul Rafay',
       phone: '+92 300 1234567',
-      role: 'agent',
+      role: 'admin',
       status: 'approved',
       is_online: true,
       last_seen_at: new Date().toISOString(),
       created_at: new Date().toISOString()
     };
-    const agentHairSalon: StoreAgent = {
-      id: 'agent_jc7c5kd',
-      email: 'hsalon680@gmail.com',
-      full_name: 'Hair Salon',
-      phone: '03156289952',
-      role: 'agent',
-      status: 'approved',
-      is_online: true,
-      last_seen_at: new Date().toISOString(),
-      created_at: new Date().toISOString()
-    };
-    this.agents.set(adminGarry.email.toLowerCase(), adminGarry);
-    this.agents.set(adminTzafar.email.toLowerCase(), adminTzafar);
-    this.agents.set(adminAnnus.email.toLowerCase(), adminAnnus);
-    this.agents.set(agent.email.toLowerCase(), agent);
-    this.agents.set(agentHairSalon.email.toLowerCase(), agentHairSalon);
-    this.agents.delete('hsalon580@gmail.com');
+    this.agents.clear();
+    this.agents.set(adminAbdulRafay.email.toLowerCase(), adminAbdulRafay);
   }
 
   async getSession(sessionId: string): Promise<StoreVisitorSession | null> {
@@ -662,64 +613,38 @@ class GranularStore {
   }
 
   async getAllAgents(): Promise<StoreAgent[]> {
-    try {
-      const { data: aFiles } = await supabaseAdmin.storage.from(BUCKET).list('agents');
-      if (aFiles && aFiles.length > 0) {
-        await Promise.all(aFiles.map(async (f) => {
-          try {
-            const { data } = await supabaseAdmin.storage.from(BUCKET).download(`agents/${f.name}`);
-            if (data) {
-              const text = await parseStorageData(data);
-              if (text) {
-                const a: StoreAgent = JSON.parse(text);
-                if (ADMIN_EMAILS.includes(a.email.toLowerCase())) {
-                  a.role = 'admin';
-                  a.status = 'approved';
-                }
-                this.agents.set(a.email.toLowerCase(), a);
-              }
-            }
-          } catch {}
-        }));
-      }
-    } catch {}
-
-    // Ensure all 3 admins are always present and approved as admin
-    for (const email of ADMIN_EMAILS) {
-      const existing = this.agents.get(email.toLowerCase());
-      if (existing) {
-        existing.role = 'admin';
-        existing.status = 'approved';
-      }
-    }
-    this.agents.delete('hsalon580@gmail.com');
-
-    const seenEmails = new Set<string>();
-    const seenNames = new Set<string>();
-    const uniqueAgents: StoreAgent[] = [];
-
-    for (const a of Array.from(this.agents.values())) {
-      const cleanEmail = (a.email || '').toLowerCase().trim();
-      const cleanName = (a.full_name || '').toLowerCase().trim();
-      if (!cleanEmail || seenEmails.has(cleanEmail)) continue;
-      if (cleanName && seenNames.has(cleanName)) continue;
-
-      seenEmails.add(cleanEmail);
-      if (cleanName) seenNames.add(cleanName);
-      uniqueAgents.push(a);
-    }
-
-    return uniqueAgents;
+    const adminAbdulRafay: StoreAgent = {
+      id: 'agent_abdulrafay_admin',
+      email: 'abdulrafay40023@gmail.com',
+      full_name: 'Abdul Rafay',
+      phone: '+92 300 1234567',
+      role: 'admin',
+      status: 'approved',
+      is_online: true,
+      last_seen_at: new Date().toISOString(),
+      created_at: new Date().toISOString()
+    };
+    this.agents.clear();
+    this.agents.set(adminAbdulRafay.email.toLowerCase(), adminAbdulRafay);
+    return [adminAbdulRafay];
   }
 
   async getAgent(agentId: string): Promise<StoreAgent | null> {
-    const all = await this.getAllAgents();
-    const found = all.find(a => a.id === agentId || a.email.toLowerCase() === agentId.toLowerCase()) || null;
-    if (found && ADMIN_EMAILS.includes(found.email.toLowerCase())) {
-      found.role = 'admin';
-      found.status = 'approved';
+    const clean = (agentId || '').toLowerCase().trim();
+    if (clean === 'agent_abdulrafay_admin' || clean === 'abdulrafay40023@gmail.com' || clean === 'support@leadzmaker.com' || clean === 'admin') {
+      return {
+        id: 'agent_abdulrafay_admin',
+        email: 'abdulrafay40023@gmail.com',
+        full_name: 'Abdul Rafay',
+        phone: '+92 300 1234567',
+        role: 'admin',
+        status: 'approved',
+        is_online: true,
+        last_seen_at: new Date().toISOString(),
+        created_at: new Date().toISOString()
+      };
     }
-    return found;
+    return null;
   }
 
   async saveAgent(agent: StoreAgent): Promise<void> {

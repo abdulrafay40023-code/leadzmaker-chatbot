@@ -92,7 +92,7 @@ export const LiveChatConsole: React.FC<LiveChatConsoleProps> = ({
   const agentInputRef = useRef<HTMLTextAreaElement>(null);
 
   // ROLE-BASED VISIBILITY FILTERING
-  const adminEmails = ['garryamelia6265@gmail.com', 'tzafar04@gmail.com', 'annusraees@gmail.com'];
+  const adminEmails = ['abdulrafay40023@gmail.com', 'support@leadzmaker.com'];
   const isAdmin = currentAgent.role === 'admin' || (currentAgent.email && adminEmails.includes(currentAgent.email.toLowerCase()));
 
   const { readConvMap, deleteConversation } = useLiveSync();
@@ -1601,7 +1601,7 @@ const sortTimelineMessages = <T extends { id?: string; seq?: number; created_at?
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Garry Amelia (Admin) or Abdul Rafay"
+                  placeholder="Abdul Rafay (Admin)"
                   value={transferAgentName}
                   onChange={(e) => setTransferAgentName(e.target.value)}
                   className="w-full bg-[#131d33] border border-dark-border rounded-xl px-3.5 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
@@ -1614,7 +1614,7 @@ const sortTimelineMessages = <T extends { id?: string; seq?: number; created_at?
                 </label>
                 <input
                   type="email"
-                  placeholder="e.g. garryamelia6265@gmail.com"
+                  placeholder="abdulrafay40023@gmail.com"
                   value={transferAgentEmail}
                   onChange={(e) => setTransferAgentEmail(e.target.value)}
                   className="w-full bg-[#131d33] border border-dark-border rounded-xl px-3.5 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
