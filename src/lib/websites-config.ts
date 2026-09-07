@@ -76,32 +76,22 @@ CRITICAL RULES:
   }
 };
 
-export function getWebsiteConfig(slugOrHostname?: string, hostHeader?: string): WebsiteConfig {
-  const defaultConf = WEBSITES['leadzmaker'];
-  if (!slugOrHostname && !hostHeader) return defaultConf;
+export const DEFAULT_WEBSITE_CONFIG: WebsiteConfig = WEBSITES['leadzmaker'];
 
-  if (slugOrHostname && WEBSITES[slugOrHostname]) {
-    return WEBSITES[slugOrHostname];
+export function detectWebsiteSlugFromUrl(urlOrHostname?: string | null): string {
+  return 'leadzmaker';
+}
+
+export function getWebsiteConfig(propertySlug?: string | null, urlOrHostname?: string | null): WebsiteConfig {
+  if (propertySlug && WEBSITES[propertySlug]) {
+    return WEBSITES[propertySlug];
   }
+  return DEFAULT_WEBSITE_CONFIG;
+}
 
-  const check = (h: string) => {
-    const clean = h.toLowerCase().replace(/^https?:\/\//, '').split(':')[0].replace(/^www\./, '');
-    for (const conf of Object.values(WEBSITES)) {
-      if (conf.hostnames.some(hn => hn.toLowerCase().replace(/^www\./, '') === clean)) {
-        return conf;
-      }
-    }
-    return null;
-  };
-
-  if (hostHeader) {
-    const found = check(hostHeader);
-    if (found) return found;
-  }
-  if (slugOrHostname) {
-    const found = check(slugOrHostname);
-    if (found) return found;
-  }
-
-  return defaultConf;
+export function getAllWebsites(): WebsiteConfig[] {
+  return Object.entries(WEBSITES).map(([slug, config]) => ({
+    ...config,
+    slug: config.slug || slug
+  }));
 }
