@@ -1,0 +1,201 @@
+(function () {
+  'use strict';
+
+  // Prevent multiple executions
+  if (window.__LEADZMAKER_WIDGET_LOADED__) return;
+  window.__LEADZMAKER_WIDGET_LOADED__ = true;
+
+  var scriptEl = document.currentScript || document.querySelector('script[src*="widget.js"]');
+  var serverOrigin = 'https://leadzmaker-chatbot.vercel.app';
+  if (scriptEl && scriptEl.src) {
+    try {
+      var url = new URL(scriptEl.src);
+      serverOrigin = url.origin;
+    } catch (e) {}
+  }
+
+  var currentHost = (window.location.hostname || '').toLowerCase();
+  // Disable widget and tracking on CRM / salesflow-ai / teals portal sites
+  if (currentHost.indexOf('salesflow-ai') !== -1 || currentHost.indexOf('teals-livechat') !== -1) {
+    return;
+  }
+
+  function detectSlugFromHostname(hostname) {
+    var h = (hostname || '').toLowerCase();
+    if (h.indexOf('amzsolutionshub.com') !== -1) return 'amz-solutions-hub';
+    if (h.indexOf('amzinnovators.com') !== -1) return 'amz-innovators';
+    if (h.indexOf('authorsbreeze.com') !== -1) return 'authors-breeze';
+    if (h.indexOf('probookpublishing.com') !== -1) return 'pro-book-publishing';
+    if (h.indexOf('amzwritershub.com') !== -1) return 'amz-writers-hub';
+    return null;
+  }
+
+  var explicitSlug = scriptEl && scriptEl.getAttribute('data-property-slug');
+  var detectedSlug = detectSlugFromHostname(window.location.hostname);
+  var propertySlug = explicitSlug || detectedSlug || 'leadzmaker';
+  var isAdmin = window.location.pathname.startsWith('/dashboard') || window.location.pathname.startsWith('/admin');
+
+  // PER-TAB SESSION ID GENERATED STRICTLY ONCE PER TAB
+  var tabSessionId;
+  try {
+    tabSessionId = sessionStorage.getItem('teals_tab_session_id');
+  } catch (e) {}
+
+  if (!tabSessionId) {
+    tabSessionId = 'tab_' + Math.random().toString(36).substring(2, 10) + '_' + Date.now().toString(36);
+    try {
+      sessionStorage.setItem('teals_tab_session_id', tabSessionId);
+    } catch (e) {}
+  }
+
+  // Persistent visitor token across reloads
+  var visitorToken;
+  try {
+    visitorToken = localStorage.getItem('teals_visitor_token');
+  } catch (e) {}
+
+  if (!visitorToken) {
+    visitorToken = 'vis_' + Math.random().toString(36).substring(2, 10);
+    try {
+      localStorage.setItem('teals_visitor_token', visitorToken);
+    } catch (e) {}
+  }
+
+  function sendTracking(isNew) {
+    if (isAdmin) return;
+    try {
+      var currentUrl = window.location.href || window.location.pathname || '/';
+      var referrer = document.referrer || 'Direct';
+
+      fetch(serverOrigin + '/api/visitor/track', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: tabSessionId,
+          visitorToken: visitorToken,
+          propertySlug: propertySlug,
+          currentPage: currentUrl,
+          referrer: referrer,
+          isNewPageView: isNew
+        })
+      }).catch(function () {});
+    } catch (e) {}
+  }
+
+  // Initial track on page load
+  sendTracking(true);
+
+  function sendPing() {
+    if (isAdmin) return;
+    try {
+      var currentPath = window.location.pathname || '/';
+      fetch(serverOrigin + '/api/visitor/ping', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: tabSessionId,
+          visitorToken: visitorToken,
+          propertySlug: propertySlug,
+          currentPage: currentPath
+        })
+      }).catch(function () {});
+    } catch (e) {}
+  }
+
+  // 5-Second Active Heartbeat Ping
+  setInterval(sendPing, 5000);
+
+  // Immediate ping when visitor switches tabs or focuses the window
+  if (typeof document.addEventListener !== 'undefined') {
+    document.addEventListener('visibilitychange', function () {
+      sendPing();
+    });
+  }
+  window.addEventListener('focus', sendPing);
+  window.addEventListener('pageshow', function () {
+    sendTracking(false);
+  });
+
+  // Throttled user interaction ping (max once per 8 seconds)
+  var lastInteractionPing = 0;
+  function onUserActive() {
+    var now = Date.now();
+    if (now - lastInteractionPing > 8000) {
+      lastInteractionPing = now;
+      sendPing();
+    }
+  }
+  window.addEventListener('mousemove', onUserActive, { passive: true });
+  window.addEventListener('scroll', onUserActive, { passive: true });
+  window.addEventListener('touchstart', onUserActive, { passive: true });
+  window.addEventListener('keydown', onUserActive, { passive: true });
+
+  // Instant departure notification on tab close / mobile swipe
+  function handleOffline() {
+    if (isAdmin) return;
+    try {
+      var payload = JSON.stringify({
+        sessionId: tabSessionId,
+        visitorToken: visitorToken,
+        propertySlug: propertySlug
+      });
+      var url = serverOrigin + '/api/visitor/offline?sessionId=' + encodeURIComponent(tabSessionId);
+      if (navigator.sendBeacon) {
+        var blob = new Blob([payload], { type: 'application/json' });
+        navigator.sendBeacon(url, blob);
+      } else {
+        fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: payload,
+          keepalive: true
+        }).catch(function () {});
+      }
+    } catch (e) {}
+  }
+
+  window.addEventListener('beforeunload', handleOffline);
+  window.addEventListener('pagehide', handleOffline);
+  window.addEventListener('unload', handleOffline);
+
+  // Embed Live Chat Iframe
+  if (!isAdmin) {
+    var iframe = document.createElement('iframe');
+    iframe.id = 'leadzmaker-livechat-iframe';
+    iframe.src = serverOrigin + '/widget?property=' + encodeURIComponent(propertySlug) + '&page=' + encodeURIComponent(window.location.href || window.location.pathname || '/') + '&ref=' + encodeURIComponent(document.referrer || 'Direct') + '&session=' + encodeURIComponent(tabSessionId) + '&token=' + encodeURIComponent(visitorToken) + '&_v=20260904_2';
+    iframe.style.position = 'fixed';
+    iframe.style.bottom = '20px';
+    iframe.style.right = '20px';
+    iframe.style.width = '80px';
+    iframe.style.height = '80px';
+    iframe.style.border = 'none';
+    iframe.style.zIndex = '9999999';
+    iframe.style.colorScheme = 'none';
+    iframe.style.background = 'transparent';
+    iframe.allow = 'autoplay';
+
+    window.addEventListener('message', function (e) {
+      if (e.data && e.data.type === 'TEALS_WIDGET_RESIZE') {
+        if (e.data.isOpen === true) {
+          iframe.style.width = '400px';
+          iframe.style.height = '580px';
+        } else if (e.data.isOpen === 'bubble') {
+          // Show greeting bubble - expand enough to not clip
+          iframe.style.width = '340px';
+          iframe.style.height = '130px';
+        } else {
+          iframe.style.width = '80px';
+          iframe.style.height = '80px';
+        }
+      }
+    });
+
+    if (document.body) {
+      document.body.appendChild(iframe);
+    } else {
+      window.addEventListener('DOMContentLoaded', function () {
+        document.body.appendChild(iframe);
+      });
+    }
+  }
+})();
