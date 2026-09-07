@@ -110,16 +110,16 @@ interface LiveSyncContextType {
 const LiveSyncContext = createContext<LiveSyncContextType | undefined>(undefined);
 
 const getUserStorageKey = () => {
-  if (typeof window === 'undefined') return 'teals_read_map_default';
+  if (typeof window === 'undefined') return 'lm_read_map_default';
   try {
-    const raw = localStorage.getItem('teals_agent_session');
+    const raw = localStorage.getItem('lm_agent_session');
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (parsed.email) return `teals_read_map_${parsed.email.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
-      if (parsed.id) return `teals_read_map_${parsed.id}`;
+      if (parsed.email) return `lm_read_map_${parsed.email.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+      if (parsed.id) return `lm_read_map_${parsed.id}`;
     }
   } catch {}
-  return 'teals_read_map_default';
+  return 'lm_read_map_default';
 };
 
 export const LiveSyncProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -127,7 +127,7 @@ export const LiveSyncProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [conversations, setConversations] = useState<LiveConversation[]>(() => {
     if (typeof window !== 'undefined') {
       try {
-        const cached = localStorage.getItem('teals_cached_conversations');
+        const cached = localStorage.getItem('lm_cached_conversations');
         if (cached) return JSON.parse(cached);
       } catch {}
     }
@@ -138,9 +138,9 @@ export const LiveSyncProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (typeof window !== 'undefined') {
       try {
         if (conversations.length > 0) {
-          localStorage.setItem('teals_cached_conversations', JSON.stringify(conversations));
+          localStorage.setItem('lm_cached_conversations', JSON.stringify(conversations));
         } else {
-          localStorage.removeItem('teals_cached_conversations');
+          localStorage.removeItem('lm_cached_conversations');
         }
       } catch {}
     }
@@ -173,7 +173,7 @@ export const LiveSyncProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     let currentUser: { role?: string; email?: string; id?: string; full_name?: string } | null = null;
     if (typeof window !== 'undefined') {
       try {
-        const rawSession = localStorage.getItem('teals_agent_session');
+        const rawSession = localStorage.getItem('lm_agent_session');
         if (rawSession) currentUser = JSON.parse(rawSession);
       } catch {}
     }
@@ -219,7 +219,7 @@ export const LiveSyncProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     let currentUser: { role?: string; email?: string; id?: string; full_name?: string } | null = null;
     if (typeof window !== 'undefined') {
       try {
-        const rawSession = localStorage.getItem('teals_agent_session');
+        const rawSession = localStorage.getItem('lm_agent_session');
         if (rawSession) currentUser = JSON.parse(rawSession);
       } catch {}
     }
@@ -286,7 +286,7 @@ export const LiveSyncProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     let currentUser: { role?: string; email?: string; full_name?: string } | null = null;
     if (typeof window !== 'undefined') {
       try {
-        const rawSession = localStorage.getItem('teals_agent_session');
+        const rawSession = localStorage.getItem('lm_agent_session');
         if (rawSession) currentUser = JSON.parse(rawSession);
       } catch {}
     }
@@ -312,7 +312,7 @@ export const LiveSyncProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     let currentUser: { role?: string; email?: string } | null = null;
     try {
-      const rawSession = localStorage.getItem('teals_agent_session');
+      const rawSession = localStorage.getItem('lm_agent_session');
       if (rawSession) currentUser = JSON.parse(rawSession);
     } catch {}
     // Working agents do NOT get visitor arrival beeps (only admins monitor live arrivals)
@@ -353,7 +353,7 @@ export const LiveSyncProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         if (typeof window !== 'undefined') {
           try {
             Object.keys(localStorage).forEach(k => {
-              if (k.startsWith('teals_cached_') || k.startsWith('teals_selected_') || k.startsWith('teals_read_map')) {
+              if (k.startsWith('lm_cached_') || k.startsWith('lm_selected_') || k.startsWith('lm_read_map')) {
                 localStorage.removeItem(k);
               }
             });
@@ -510,7 +510,7 @@ export const LiveSyncProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         // Determine user FIRST — needed for both conversation list and beep logic
         let currentUser: { role?: string; email?: string; id?: string } | null = null;
         try {
-          const rawSession = localStorage.getItem('teals_agent_session');
+          const rawSession = localStorage.getItem('lm_agent_session');
           if (rawSession) currentUser = JSON.parse(rawSession);
         } catch {}
 
@@ -536,7 +536,7 @@ export const LiveSyncProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             delete next[conversation.id];
             if (typeof window !== 'undefined') {
               try {
-                localStorage.setItem('teals_read_conv_map', JSON.stringify(next));
+                localStorage.setItem('lm_read_conv_map', JSON.stringify(next));
               } catch {}
             }
             return next;
@@ -714,7 +714,7 @@ export const LiveSyncProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         console.log('[SYNC_DEBUG] WebSocket agent_pending_approval event received:', payload);
         let currentUser: { role?: string; email?: string } | null = null;
         try {
-          const rawSession = localStorage.getItem('teals_agent_session');
+          const rawSession = localStorage.getItem('lm_agent_session');
           if (rawSession) currentUser = JSON.parse(rawSession);
         } catch {}
         const isAdmin = checkIsAdmin(currentUser);
@@ -746,7 +746,7 @@ export const LiveSyncProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         if (typeof window !== 'undefined') {
           try {
             Object.keys(localStorage).forEach(k => {
-              if (k.startsWith('teals_cached_') || k.startsWith('teals_selected_') || k.startsWith('teals_read_map')) {
+              if (k.startsWith('lm_cached_') || k.startsWith('lm_selected_') || k.startsWith('lm_read_map')) {
                 localStorage.removeItem(k);
               }
             });
@@ -766,7 +766,7 @@ export const LiveSyncProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         if (typeof window !== 'undefined') {
           try {
             Object.keys(localStorage).forEach(k => {
-              if (k.startsWith('teals_cached_') || k.startsWith('teals_selected_') || k.startsWith('teals_read_map')) {
+              if (k.startsWith('lm_cached_') || k.startsWith('lm_selected_') || k.startsWith('lm_read_map')) {
                 localStorage.removeItem(k);
               }
             });
@@ -826,8 +826,8 @@ export const LiveSyncProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setWebsiteStats({});
     if (typeof window !== 'undefined') {
       try {
-        localStorage.removeItem('teals_cached_conversations');
-        localStorage.removeItem('teals_selected_chat_id');
+        localStorage.removeItem('lm_cached_conversations');
+        localStorage.removeItem('lm_selected_chat_id');
       } catch {}
     }
     setLiveCount(0);

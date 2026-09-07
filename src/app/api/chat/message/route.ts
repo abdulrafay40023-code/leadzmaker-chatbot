@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
     }
 
     const refererHeader = req.headers.get('referer');
-    const effectiveSlug = (propertySlug && propertySlug !== 'teals-crm')
+    const effectiveSlug = (propertySlug && propertySlug !== 'leadzmaker')
       ? propertySlug
       : detectWebsiteSlugFromUrl(pageUrl || refererHeader);
     const siteConfig = getWebsiteConfig(effectiveSlug);
@@ -135,8 +135,8 @@ export async function POST(req: NextRequest) {
         ]
       };
     } else {
-      if (!conv.property_slug || conv.property_slug === 'teals-crm') {
-        if (effectiveSlug && effectiveSlug !== 'teals-crm') {
+      if (!conv.property_slug || conv.property_slug === 'leadzmaker') {
+        if (effectiveSlug && effectiveSlug !== 'leadzmaker') {
           conv.property_slug = effectiveSlug;
         }
       }
@@ -249,7 +249,7 @@ export async function POST(req: NextRequest) {
           content: m.content
         }));
 
-      const activeSlug = conv.property_slug || effectiveSlug || 'teals-crm';
+      const activeSlug = conv.property_slug || effectiveSlug || 'leadzmaker';
       const activeSiteConfig = getWebsiteConfig(activeSlug);
 
       const aiRes = await generateAIChatResponse({

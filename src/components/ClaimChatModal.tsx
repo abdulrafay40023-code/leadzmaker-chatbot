@@ -91,7 +91,7 @@ export const ClaimChatModal: React.FC<ClaimChatModalProps> = ({
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="e.g. agent@teals.ai"
+                placeholder="e.g. support@leadzmaker.com"
                 className="w-full bg-[#131f38] border border-gray-700 rounded-xl pl-9 pr-3.5 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-all"
               />
             </div>

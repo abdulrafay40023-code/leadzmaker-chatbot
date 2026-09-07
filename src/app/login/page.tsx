@@ -15,11 +15,11 @@ export default function LoginPage() {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user?.email) {
-        const rawSession = localStorage.getItem('teals_agent_session');
+        const rawSession = localStorage.getItem('lm_agent_session');
         if (rawSession) {
           try {
             const parsed = JSON.parse(rawSession);
-            const adminEmails = ['garryamelia6265@gmail.com', 'tzafar04@gmail.com', 'annusraees@gmail.com'];
+            const adminEmails = ['abdulrafay40023@gmail.com', 'support@leadzmaker.com', 'garryamelia6265@gmail.com', 'tzafar04@gmail.com', 'annusraees@gmail.com'];
             if (parsed?.status === 'approved' || parsed?.role === 'admin' || (parsed?.email && adminEmails.includes(parsed.email.toLowerCase()))) {
               router.push('/dashboard');
             }
@@ -39,12 +39,12 @@ export default function LoginPage() {
       // If embedded in an iframe (e.g. CRM), open in clean top window/tab so Google never blocks with 403!
       const isIframe = typeof window !== 'undefined' && window.self !== window.top;
       if (isIframe) {
-        window.open('https://teals-livechat-saas.vercel.app/login', '_blank');
+        window.open('https://leadzmaker-chatbot.vercel.app/login', '_blank');
         setGoogleLoading(false);
         return;
       }
 
-      const origin = typeof window !== 'undefined' ? window.location.origin : 'https://teals-livechat-saas.vercel.app';
+      const origin = typeof window !== 'undefined' ? window.location.origin : 'https://leadzmaker-chatbot.vercel.app';
       const { error: authErr } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -73,7 +73,7 @@ export default function LoginPage() {
             Welcome back
           </h1>
           <p className="text-xs text-dark-muted mt-2">
-            Sign in with your Google account to access your CRM & LiveChat.
+            Sign in with your Google account to access your LeadzMaker LiveChat & Support Hub.
           </p>
         </div>
 

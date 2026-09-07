@@ -95,7 +95,7 @@ export default function DemoPage() {
       </main>
 
       {/* Floating Embedded LiveChat Widget */}
-      <WidgetChat propertySlug="teals-crm" />
+      <WidgetChat propertySlug="leadzmaker" />
     </div>
   );
 }

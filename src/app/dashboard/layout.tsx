@@ -44,7 +44,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           role: isAdm ? 'admin' : (ssoRole || 'agent'),
           status: 'approved'
         };
-        localStorage.setItem('teals_agent_session', JSON.stringify(ssoAgent));
+        localStorage.setItem('lm_agent_session', JSON.stringify(ssoAgent));
         setCurrentAgent(ssoAgent);
 
         fetch('/api/agent/ping', {
@@ -59,7 +59,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       }
     }
 
-    const rawSession = localStorage.getItem('teals_agent_session');
+    const rawSession = localStorage.getItem('lm_agent_session');
     if (!rawSession) {
       router.push('/login');
       return;
@@ -70,7 +70,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       const isAdm = agent.role === 'admin' || (agent.email && adminEmails.includes(agent.email.toLowerCase()));
 
       if (agent.status !== 'approved' && !isAdm) {
-        localStorage.removeItem('teals_agent_session');
+        localStorage.removeItem('lm_agent_session');
         router.push('/login');
         return;
       }
@@ -86,7 +86,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           })
         }).then(res => {
           if (res.status === 403) {
-            localStorage.removeItem('teals_agent_session');
+            localStorage.removeItem('lm_agent_session');
             router.push('/login');
           }
         }).catch(() => {});
@@ -96,14 +96,14 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       const pingTimer = setInterval(verifyAndPing, 10000);
 
       // Realtime listener: if admin removes this agent, immediately evict
-      const channel = supabase.channel('teals-agent-auth-monitor', {
+      const channel = supabase.channel('leadzmaker-agent-auth-monitor', {
         config: { broadcast: { self: true } }
       });
       channel.on('broadcast', { event: 'agent_removed' }, (payload: { payload?: { agentEmail?: string }; agentEmail?: string }) => {
         const raw = payload?.payload || payload;
         const removedEmail = raw?.agentEmail;
         if (removedEmail && agent.email && removedEmail.toLowerCase() === agent.email.toLowerCase()) {
-          localStorage.removeItem('teals_agent_session');
+          localStorage.removeItem('lm_agent_session');
           router.push('/login');
         }
       }).subscribe();
@@ -113,12 +113,12 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         supabase.removeChannel(channel);
       };
     } catch {
-      localStorage.removeItem('teals_agent_session');
+      localStorage.removeItem('lm_agent_session');
       router.push('/login');
     }
   }, [router]);
 
-  const adminEmails = ['garryamelia6265@gmail.com', 'tzafar04@gmail.com', 'annusraees@gmail.com'];
+  const adminEmails = ['abdulrafay40023@gmail.com', 'support@leadzmaker.com', 'garryamelia6265@gmail.com', 'tzafar04@gmail.com', 'annusraees@gmail.com'];
   const isAdmin = currentAgent?.role === 'admin' || (currentAgent?.email && adminEmails.includes(currentAgent.email.toLowerCase()));
 
   useEffect(() => {
@@ -150,7 +150,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    localStorage.removeItem('teals_agent_session');
+    localStorage.removeItem('lm_agent_session');
     router.push('/login');
   };
 
@@ -183,7 +183,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       <EmbedCodeModal
         isOpen={isEmbedModalOpen}
         onClose={() => setIsEmbedModalOpen(false)}
-        propertySlug="teals-crm"
+        propertySlug="leadzmaker"
       />
     </div>
   );

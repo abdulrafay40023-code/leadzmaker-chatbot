@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     const {
       sessionId,
       visitorToken,
-      propertySlug = 'teals-crm',
+      propertySlug = 'leadzmaker',
       currentPage = '/',
       referrer = 'Direct',
       isNewPageView = false,
@@ -40,12 +40,12 @@ export async function POST(req: NextRequest) {
     }
 
     const refererHeader = req.headers.get('referer');
-    const effectiveSlug = (propertySlug && propertySlug !== 'teals-crm')
+    const effectiveSlug = (propertySlug && propertySlug !== 'leadzmaker')
       ? propertySlug
       : detectWebsiteSlugFromUrl(currentPage || refererHeader);
 
     // Completely ignore CRM traffic (salesflow-ai, teals-crm, etc.) as requested
-    const isCrmTraffic = !effectiveSlug || effectiveSlug === 'teals-crm' ||
+    const isCrmTraffic = !effectiveSlug || effectiveSlug === 'leadzmaker' ||
       (currentPage && (currentPage.includes('salesflow-ai') || currentPage.includes('teals-livechat'))) ||
       (refererHeader && (refererHeader.includes('salesflow-ai') || refererHeader.includes('teals-livechat')));
 
@@ -128,7 +128,7 @@ export async function POST(req: NextRequest) {
     if (conv) {
       if (visitorName) conv.visitor_name = visitorName;
       if (visitorEmail) conv.visitor_email = visitorEmail;
-      if (!conv.property_slug || conv.property_slug === 'teals-crm') {
+      if (!conv.property_slug || conv.property_slug === 'leadzmaker') {
         conv.property_slug = effectiveSlug;
       }
       conv.visitor_ip = ip;

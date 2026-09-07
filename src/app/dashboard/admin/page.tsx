@@ -33,14 +33,14 @@ export default function AdminPage() {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    const rawSession = localStorage.getItem('teals_agent_session');
+    const rawSession = localStorage.getItem('lm_agent_session');
     if (!rawSession) {
       router.push('/login');
       return;
     }
     try {
       const agent = JSON.parse(rawSession);
-      const adminEmails = ['garryamelia6265@gmail.com', 'tzafar04@gmail.com', 'annusraees@gmail.com'];
+      const adminEmails = ['abdulrafay40023@gmail.com', 'support@leadzmaker.com', 'garryamelia6265@gmail.com', 'tzafar04@gmail.com', 'annusraees@gmail.com'];
       const isAdm = agent.role === 'admin' || (agent.email && adminEmails.includes(agent.email.toLowerCase()));
       if (!isAdm) {
         router.push('/dashboard');

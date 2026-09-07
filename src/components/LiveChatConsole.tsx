@@ -523,7 +523,7 @@ const sortTimelineMessages = <T extends { id?: string; seq?: number; created_at?
 
     const agentId = currentAgent.id || `agent_${(currentAgent.email || 'agent').replace(/[^a-zA-Z0-9]/g, '_')}`;
     const agentName = currentAgent.full_name || currentAgent.email?.split('@')[0] || 'Support Agent';
-    const agentEmail = currentAgent.email || 'agent@teals.ai';
+    const agentEmail = currentAgent.email || 'support@leadzmaker.com';
 
     try {
       const res = await fetch('/api/agent/claim-chat', {
@@ -836,7 +836,7 @@ const sortTimelineMessages = <T extends { id?: string; seq?: number; created_at?
     const unreadCount = getUnreadCountForConv(conv);
     const isTyping = !!(conv.typing_preview && conv.typing_preview.trim().length > 0);
     const chatBadge = getChatBadge(conv);
-    const siteConfig = getWebsiteConfig(conv.property_slug || 'teals-crm');
+    const siteConfig = getWebsiteConfig(conv.property_slug || 'leadzmaker');
 
     return (
       <div
@@ -1145,7 +1145,7 @@ const sortTimelineMessages = <T extends { id?: string; seq?: number; created_at?
                     size="md"
                   />
                   {(() => {
-                    const selectedSiteConfig = getWebsiteConfig(selectedConv.property_slug || 'teals-crm');
+                    const selectedSiteConfig = getWebsiteConfig(selectedConv.property_slug || 'leadzmaker');
                     return (
                       <div>
                         <div className="flex items-center space-x-2">
@@ -1460,7 +1460,7 @@ const sortTimelineMessages = <T extends { id?: string; seq?: number; created_at?
               </div>
 
               {(() => {
-                const selectedSiteConfig = getWebsiteConfig(selectedConv.property_slug || 'teals-crm');
+                const selectedSiteConfig = getWebsiteConfig(selectedConv.property_slug || 'leadzmaker');
                 return (
                   <div>
                     <h4 className="text-[11px] font-bold text-dark-muted uppercase mb-2">Origin Website & Navigation</h4>

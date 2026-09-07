@@ -201,7 +201,7 @@ export const WidgetChat: React.FC<WidgetChatProps> = ({
 
   const fetchVisitorConversations = async (token: string, email?: string) => {
     try {
-      const cleanEmail = email || userEmail || (typeof window !== 'undefined' ? localStorage.getItem('teals_lead_email') || '' : '');
+      const cleanEmail = email || userEmail || (typeof window !== 'undefined' ? localStorage.getItem('lm_lead_email') || '' : '');
       const res = await fetch(`/api/chat/message?visitorToken=${encodeURIComponent(token)}${cleanEmail ? `&email=${encodeURIComponent(cleanEmail)}` : ''}`);
       if (res.ok) {
         const data = await res.json();
@@ -218,7 +218,7 @@ export const WidgetChat: React.FC<WidgetChatProps> = ({
 
           setSavedConversations(mapped);
           try {
-            localStorage.setItem('teals_visitor_conv_list', JSON.stringify(mapped));
+            localStorage.setItem('lm_visitor_conv_list', JSON.stringify(mapped));
           } catch {}
         }
       }
@@ -228,11 +228,11 @@ export const WidgetChat: React.FC<WidgetChatProps> = ({
   // Load saved lead details and previous conversation IDs on mount
   useEffect(() => {
     try {
-      const savedName = localStorage.getItem('teals_lead_name');
-      const savedEmail = localStorage.getItem('teals_lead_email');
-      const submitted = localStorage.getItem('teals_lead_submitted');
+      const savedName = localStorage.getItem('lm_lead_name');
+      const savedEmail = localStorage.getItem('lm_lead_email');
+      const submitted = localStorage.getItem('lm_lead_submitted');
 
-      const rawConvList = localStorage.getItem('teals_visitor_conv_list');
+      const rawConvList = localStorage.getItem('lm_visitor_conv_list');
       const parsedConvs: SavedConvSummary[] = rawConvList ? JSON.parse(rawConvList) : [];
       setSavedConversations(parsedConvs);
 
@@ -267,8 +267,8 @@ export const WidgetChat: React.FC<WidgetChatProps> = ({
       const filtered = prev.filter(c => c.id !== conversationId);
       const updated = [{ id: conversationId, lastMessage: lastMsg, updatedAt: timeStr }, ...filtered];
       try { 
-        localStorage.setItem('teals_visitor_conv_list', JSON.stringify(updated));
-        localStorage.setItem('teals_conv_cache_' + conversationId, JSON.stringify(messages));
+        localStorage.setItem('lm_visitor_conv_list', JSON.stringify(updated));
+        localStorage.setItem('lm_conv_cache_' + conversationId, JSON.stringify(messages));
       } catch {}
       return updated;
     });
@@ -276,17 +276,19 @@ export const WidgetChat: React.FC<WidgetChatProps> = ({
 
   useEffect(() => {
     if (typeof window !== 'undefined' && window.parent) {
-      window.parent.postMessage({ type: 'TEALS_WIDGET_RESIZE', isOpen }, '*');
+      window.parent.postMessage({ type: 'LM_WIDGET_RESIZE', isOpen }, '*'); window.parent.postMessage({ type: 'LM_WIDGET_RESIZE', isOpen }, '*');
     }
   }, [isOpen]);
 
   // Expand iframe when greeting bubble is shown so it's not clipped
   useEffect(() => {
     if (typeof window !== 'undefined' && window.parent) {
-      window.parent.postMessage({
-        type: 'TEALS_WIDGET_RESIZE',
+      const resizePayload = {
+        type: 'LM_WIDGET_RESIZE',
         isOpen: showGreetingBubble && !isOpen ? 'bubble' : isOpen
-      }, '*');
+      };
+      window.parent.postMessage(resizePayload, '*');
+      window.parent.postMessage({ ...resizePayload, type: 'TEALS_WIDGET_RESIZE' }, '*');
     }
   }, [showGreetingBubble, isOpen]);
 
@@ -295,8 +297,8 @@ export const WidgetChat: React.FC<WidgetChatProps> = ({
     let token = visitorTokenProp;
     if (!token) {
       try {
-        token = localStorage.getItem('teals_visitor_token') || ('vis_' + Math.random().toString(36).substring(2, 10));
-        localStorage.setItem('teals_visitor_token', token);
+        token = localStorage.getItem('lm_visitor_token') || ('vis_' + Math.random().toString(36).substring(2, 10));
+        localStorage.setItem('lm_visitor_token', token);
       } catch {
         token = 'vis_' + Math.random().toString(36).substring(2, 10);
       }
@@ -306,7 +308,7 @@ export const WidgetChat: React.FC<WidgetChatProps> = ({
     // Check if there is an existing active conversation saved in localStorage
     let activeConvId: string | null = null;
     try {
-      activeConvId = localStorage.getItem('teals_active_conv_id');
+      activeConvId = localStorage.getItem('lm_active_conv_id');
     } catch {}
 
     const targetConvId = activeConvId || token;
@@ -314,7 +316,7 @@ export const WidgetChat: React.FC<WidgetChatProps> = ({
 
     // 0ms INSTANT LOCAL CACHE RESTORE (Zero network delay on refresh)
     try {
-      const cached = localStorage.getItem('teals_conv_cache_' + targetConvId);
+      const cached = localStorage.getItem('lm_conv_cache_' + targetConvId);
       if (cached) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -348,7 +350,7 @@ export const WidgetChat: React.FC<WidgetChatProps> = ({
           if (data.conversation?.messages && data.conversation.messages.length > 0) {
             setMessages(dedupeMessages(data.conversation.messages));
             try {
-              localStorage.setItem('teals_conv_cache_' + targetConvId, JSON.stringify(data.conversation.messages));
+              localStorage.setItem('lm_conv_cache_' + targetConvId, JSON.stringify(data.conversation.messages));
             } catch {}
             if (data.conversation.mode === 'human' && data.conversation.assigned_agent_name) {
               setIsHumanConnected(true);
@@ -357,7 +359,7 @@ export const WidgetChat: React.FC<WidgetChatProps> = ({
           } else {
             // Restore from local cache if present
             try {
-              const localCached = localStorage.getItem('teals_conv_cache_' + targetConvId);
+              const localCached = localStorage.getItem('lm_conv_cache_' + targetConvId);
               if (localCached) {
                 const parsed = JSON.parse(localCached);
                 if (Array.isArray(parsed) && parsed.length > 0) {
@@ -432,7 +434,7 @@ export const WidgetChat: React.FC<WidgetChatProps> = ({
     const handleFullWipe = () => {
       try {
         Object.keys(localStorage).forEach(k => {
-          if (k.startsWith('teals_')) {
+          if (k.startsWith('lm_')) {
             localStorage.removeItem(k);
           }
         });
@@ -673,15 +675,15 @@ export const WidgetChat: React.FC<WidgetChatProps> = ({
     setUserEmail(cleanEmail);
 
     try {
-      localStorage.setItem('teals_lead_name', cleanName);
-      localStorage.setItem('teals_lead_email', cleanEmail);
-      localStorage.setItem('teals_lead_submitted', 'true');
+      localStorage.setItem('lm_lead_name', cleanName);
+      localStorage.setItem('lm_lead_email', cleanEmail);
+      localStorage.setItem('lm_lead_submitted', 'true');
     } catch {}
 
     const targetConvId = conversationId || ('conv_' + Math.random().toString(36).substring(2, 9));
     setConversationId(targetConvId);
     try {
-      localStorage.setItem('teals_active_conv_id', targetConvId);
+      localStorage.setItem('lm_active_conv_id', targetConvId);
     } catch {}
 
     const initialConv = {
@@ -692,7 +694,7 @@ export const WidgetChat: React.FC<WidgetChatProps> = ({
 
     setSavedConversations(prev => {
       const list = prev.length > 0 ? prev : [initialConv];
-      try { localStorage.setItem('teals_visitor_conv_list', JSON.stringify(list)); } catch {}
+      try { localStorage.setItem('lm_visitor_conv_list', JSON.stringify(list)); } catch {}
       return list;
     });
 
@@ -730,8 +732,8 @@ export const WidgetChat: React.FC<WidgetChatProps> = ({
   // Open conversations history and fetch latest server records
   const handleOpenConversations = () => {
     setViewingHistory(true);
-    const cleanEmail = userEmail || (typeof window !== 'undefined' ? localStorage.getItem('teals_lead_email') || '' : '');
-    const token = visitorToken || (typeof window !== 'undefined' ? localStorage.getItem('teals_visitor_token') || '' : '');
+    const cleanEmail = userEmail || (typeof window !== 'undefined' ? localStorage.getItem('lm_lead_email') || '' : '');
+    const token = visitorToken || (typeof window !== 'undefined' ? localStorage.getItem('lm_visitor_token') || '' : '');
     fetchVisitorConversations(token, cleanEmail);
   };
 
@@ -740,14 +742,14 @@ export const WidgetChat: React.FC<WidgetChatProps> = ({
     // If currently on a conversation with real messages, save its cache
     if (conversationId && messages.length > 1) {
       try {
-        localStorage.setItem('teals_conv_cache_' + conversationId, JSON.stringify(messages));
+        localStorage.setItem('lm_conv_cache_' + conversationId, JSON.stringify(messages));
       } catch {}
     }
 
     setConversationId(convId);
     try {
-      localStorage.setItem('teals_active_conv_id', convId);
-      const localCached = localStorage.getItem('teals_conv_cache_' + convId);
+      localStorage.setItem('lm_active_conv_id', convId);
+      const localCached = localStorage.getItem('lm_conv_cache_' + convId);
       if (localCached) {
         const parsed = JSON.parse(localCached);
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -766,7 +768,7 @@ export const WidgetChat: React.FC<WidgetChatProps> = ({
         if (data.messages && Array.isArray(data.messages) && data.messages.length > 0) {
           setMessages(dedupeMessages(data.messages, siteGreeting, siteAiName));
           try {
-            localStorage.setItem('teals_conv_cache_' + convId, JSON.stringify(data.messages));
+            localStorage.setItem('lm_conv_cache_' + convId, JSON.stringify(data.messages));
           } catch {}
         }
         if (data.conversation?.mode === 'human' && data.conversation.assigned_agent_name) {
@@ -799,7 +801,7 @@ export const WidgetChat: React.FC<WidgetChatProps> = ({
       currentList = [currentEntry, ...currentList.filter(c => c.id !== conversationId)];
       if (messages.length > 1) {
         try {
-          localStorage.setItem('teals_conv_cache_' + conversationId, JSON.stringify(messages));
+          localStorage.setItem('lm_conv_cache_' + conversationId, JSON.stringify(messages));
         } catch {}
       }
     }
@@ -808,7 +810,7 @@ export const WidgetChat: React.FC<WidgetChatProps> = ({
     const newConvId = 'conv_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now().toString(36);
     setConversationId(newConvId);
     try {
-      localStorage.setItem('teals_active_conv_id', newConvId);
+      localStorage.setItem('lm_active_conv_id', newConvId);
     } catch {}
 
     const newConvSummary: SavedConvSummary = {
@@ -820,7 +822,7 @@ export const WidgetChat: React.FC<WidgetChatProps> = ({
     const finalList = [newConvSummary, ...currentList.filter(c => c.id !== newConvId)];
     setSavedConversations(finalList);
     try {
-      localStorage.setItem('teals_visitor_conv_list', JSON.stringify(finalList));
+      localStorage.setItem('lm_visitor_conv_list', JSON.stringify(finalList));
     } catch {}
 
     setIsHumanConnected(false);
@@ -837,13 +839,13 @@ export const WidgetChat: React.FC<WidgetChatProps> = ({
     };
     setMessages([initGreet]);
     try {
-      localStorage.setItem('teals_conv_cache_' + newConvId, JSON.stringify([initGreet]));
+      localStorage.setItem('lm_conv_cache_' + newConvId, JSON.stringify([initGreet]));
     } catch {}
 
     // 3. Immediately register new conversation on server so it is permanent across reloads and syncs
     try {
-      const cleanEmail = userEmail || (typeof window !== 'undefined' ? localStorage.getItem('teals_lead_email') || '' : '');
-      const cleanName = userName || (typeof window !== 'undefined' ? localStorage.getItem('teals_lead_name') || '' : '');
+      const cleanEmail = userEmail || (typeof window !== 'undefined' ? localStorage.getItem('lm_lead_email') || '' : '');
+      const cleanName = userName || (typeof window !== 'undefined' ? localStorage.getItem('lm_lead_name') || '' : '');
       await fetch('/api/chat/message', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -994,7 +996,7 @@ export const WidgetChat: React.FC<WidgetChatProps> = ({
         if (data.conversationId && !conversationId) {
           setConversationId(data.conversationId);
           try {
-            localStorage.setItem('teals_active_conv_id', data.conversationId);
+            localStorage.setItem('lm_active_conv_id', data.conversationId);
           } catch {}
         }
 

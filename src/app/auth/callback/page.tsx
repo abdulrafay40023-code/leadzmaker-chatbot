@@ -60,7 +60,7 @@ export default function AuthCallbackPage() {
         setAgentData(data.agent);
         setStep('pending');
       } else if (data.status === 'approved') {
-        localStorage.setItem('teals_agent_session', JSON.stringify(data.agent));
+        localStorage.setItem('lm_agent_session', JSON.stringify(data.agent));
         router.push('/dashboard');
       }
       setLoading(false);
@@ -86,7 +86,7 @@ export default function AuthCallbackPage() {
       const data = await res.json();
       if (res.ok) {
         if (data.status === 'approved') {
-          localStorage.setItem('teals_agent_session', JSON.stringify(data.agent));
+          localStorage.setItem('lm_agent_session', JSON.stringify(data.agent));
           router.push('/dashboard');
         } else {
           setAgentData(data.agent);
@@ -110,7 +110,7 @@ export default function AuthCallbackPage() {
       });
       const data = await res.json();
       if (data.status === 'approved') {
-        localStorage.setItem('teals_agent_session', JSON.stringify(data.agent));
+        localStorage.setItem('lm_agent_session', JSON.stringify(data.agent));
         router.push('/dashboard');
       }
     } catch (err) {
@@ -133,7 +133,7 @@ export default function AuthCallbackPage() {
         const approvedAgent = (raw as Record<string, unknown>)?.agent;
         if (approvedEmail && approvedEmail.toLowerCase() === agentData.email.toLowerCase()) {
           if (approvedAgent) {
-            localStorage.setItem('teals_agent_session', JSON.stringify(approvedAgent));
+            localStorage.setItem('lm_agent_session', JSON.stringify(approvedAgent));
           }
           router.push('/dashboard');
         }
@@ -150,7 +150,7 @@ export default function AuthCallbackPage() {
         if (res.ok) {
           const data = await res.json();
           if (data.status === 'approved') {
-            localStorage.setItem('teals_agent_session', JSON.stringify(data.agent));
+            localStorage.setItem('lm_agent_session', JSON.stringify(data.agent));
             router.push('/dashboard');
           }
         }
@@ -165,7 +165,7 @@ export default function AuthCallbackPage() {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    localStorage.removeItem('teals_agent_session');
+    localStorage.removeItem('lm_agent_session');
     router.push('/login');
   };
 

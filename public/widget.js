@@ -47,26 +47,26 @@
   // PER-TAB SESSION ID GENERATED STRICTLY ONCE PER TAB
   var tabSessionId;
   try {
-    tabSessionId = sessionStorage.getItem('teals_tab_session_id');
+    tabSessionId = sessionStorage.getItem('lm_tab_session_id');
   } catch (e) {}
 
   if (!tabSessionId) {
     tabSessionId = 'tab_' + Math.random().toString(36).substring(2, 10) + '_' + Date.now().toString(36);
     try {
-      sessionStorage.setItem('teals_tab_session_id', tabSessionId);
+      sessionStorage.setItem('lm_tab_session_id', tabSessionId);
     } catch (e) {}
   }
 
   // Persistent visitor token across reloads
   var visitorToken;
   try {
-    visitorToken = localStorage.getItem('teals_visitor_token');
+    visitorToken = localStorage.getItem('lm_visitor_token');
   } catch (e) {}
 
   if (!visitorToken) {
     visitorToken = 'vis_' + Math.random().toString(36).substring(2, 10);
     try {
-      localStorage.setItem('teals_visitor_token', visitorToken);
+      localStorage.setItem('lm_visitor_token', visitorToken);
     } catch (e) {}
   }
 
@@ -184,7 +184,7 @@
     iframe.allow = 'autoplay';
 
     window.addEventListener('message', function (e) {
-      if (e.data && e.data.type === 'TEALS_WIDGET_RESIZE') {
+      if (e.data && (e.data.type === 'LM_WIDGET_RESIZE' || e.data.type === 'TEALS_WIDGET_RESIZE')) {
         if (e.data.isOpen === true) {
           iframe.style.width = '400px';
           iframe.style.height = '580px';

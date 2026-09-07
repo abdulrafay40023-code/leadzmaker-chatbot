@@ -69,7 +69,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const visibleItems = navItems.filter(item => !item.adminOnly || isAdmin);
 
   return (
-    <aside className="w-60 bg-[#0a0f1d] border-r border-dark-border flex flex-col justify-between select-none">
+    <aside className="w-60 bg-[#0a0f1d] border-r border-dark-border flex flex-col justify-between select-none shrink-0 h-full overflow-y-auto">
       <div>
         {/* Brand */}
         <div className="h-16 flex items-center space-x-3 px-5 border-b border-dark-border">

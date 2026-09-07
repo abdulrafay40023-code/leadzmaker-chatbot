@@ -16,7 +16,7 @@ export async function OPTIONS() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { sessionId, visitorToken, currentPage, isNewPageView, propertySlug = 'teals-crm' } = body;
+    const { sessionId, visitorToken, currentPage, isNewPageView, propertySlug = 'leadzmaker' } = body;
 
     if (!sessionId) {
       return NextResponse.json({ error: 'Missing sessionId' }, { status: 400 });

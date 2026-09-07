@@ -23,7 +23,7 @@ export default function ChatsPage() {
         const ssoName = urlParams.get('sso_name');
         const ssoRole = urlParams.get('sso_role');
         if (ssoEmail) {
-          const adminEmails = ['garryamelia6265@gmail.com', 'tzafar04@gmail.com', 'annusraees@gmail.com'];
+          const adminEmails = ['abdulrafay40023@gmail.com', 'support@leadzmaker.com', 'garryamelia6265@gmail.com', 'tzafar04@gmail.com', 'annusraees@gmail.com'];
           const cleanEmail = ssoEmail.toLowerCase().trim();
           const isAdm = ssoRole === 'admin' || adminEmails.includes(cleanEmail);
           const ssoAgent = {
@@ -33,14 +33,14 @@ export default function ChatsPage() {
             role: isAdm ? 'admin' : (ssoRole || 'agent'),
             status: 'approved'
           };
-          localStorage.setItem('teals_agent_session', JSON.stringify(ssoAgent));
+          localStorage.setItem('lm_agent_session', JSON.stringify(ssoAgent));
           return ssoAgent;
         }
 
-        const rawSession = localStorage.getItem('teals_agent_session');
+        const rawSession = localStorage.getItem('lm_agent_session');
         if (rawSession) {
           const parsed = JSON.parse(rawSession);
-          const adminEmails = ['garryamelia6265@gmail.com', 'tzafar04@gmail.com', 'annusraees@gmail.com'];
+          const adminEmails = ['abdulrafay40023@gmail.com', 'support@leadzmaker.com', 'garryamelia6265@gmail.com', 'tzafar04@gmail.com', 'annusraees@gmail.com'];
           if (parsed?.email && adminEmails.includes(parsed.email.toLowerCase())) {
             parsed.role = 'admin';
           }
@@ -48,21 +48,21 @@ export default function ChatsPage() {
         }
       } catch {}
     }
-    return { id: 'agent_garry_admin', full_name: 'Garry Amelia', email: 'garryamelia6265@gmail.com', role: 'admin' };
+    return { id: 'agent_abdulrafay_admin', full_name: 'Admin', email: 'abdulrafay40023@gmail.com', role: 'admin' };
   });
 
   const getSelectedKey = (email?: string) => {
     const clean = (email || '').toLowerCase().replace(/[^a-z0-9]/g, '_');
-    return clean ? `teals_selected_chat_${clean}` : 'teals_selected_chat_id';
+    return clean ? `lm_selected_chat_${clean}` : 'lm_selected_chat_id';
   };
 
   const [selectedChatId, setSelectedChatId] = useState<string | null>(() => {
     if (typeof window !== 'undefined') {
       try {
-        const raw = localStorage.getItem('teals_agent_session');
+        const raw = localStorage.getItem('lm_agent_session');
         const email = raw ? JSON.parse(raw)?.email : '';
         const key = (email || '').toLowerCase().replace(/[^a-z0-9]/g, '_');
-        return localStorage.getItem(key ? `teals_selected_chat_${key}` : 'teals_selected_chat_id') || null;
+        return localStorage.getItem(key ? `lm_selected_chat_${key}` : 'lm_selected_chat_id') || null;
       } catch {}
     }
     return null;
@@ -85,7 +85,7 @@ export default function ChatsPage() {
       const ssoName = urlParams.get('sso_name');
       const ssoRole = urlParams.get('sso_role');
       if (ssoEmail) {
-        const adminEmails = ['garryamelia6265@gmail.com', 'tzafar04@gmail.com', 'annusraees@gmail.com'];
+        const adminEmails = ['abdulrafay40023@gmail.com', 'support@leadzmaker.com', 'garryamelia6265@gmail.com', 'tzafar04@gmail.com', 'annusraees@gmail.com'];
         const cleanEmail = ssoEmail.toLowerCase().trim();
         const isAdm = ssoRole === 'admin' || adminEmails.includes(cleanEmail);
         const ssoAgent = {
@@ -95,7 +95,7 @@ export default function ChatsPage() {
           role: isAdm ? 'admin' : (ssoRole || 'agent'),
           status: 'approved'
         };
-        localStorage.setItem('teals_agent_session', JSON.stringify(ssoAgent));
+        localStorage.setItem('lm_agent_session', JSON.stringify(ssoAgent));
         setCurrentAgent(ssoAgent);
         const key = getSelectedKey(cleanEmail);
         const saved = localStorage.getItem(key);
@@ -104,7 +104,7 @@ export default function ChatsPage() {
       }
     } catch {}
 
-    const rawSession = localStorage.getItem('teals_agent_session');
+    const rawSession = localStorage.getItem('lm_agent_session');
     if (rawSession) {
       try {
         const parsed = JSON.parse(rawSession);
@@ -140,7 +140,7 @@ export default function ChatsPage() {
     return savedId !== lastMsg.id && savedId !== 'all';
   };
 
-  const adminEmails = ['garryamelia6265@gmail.com', 'tzafar04@gmail.com', 'annusraees@gmail.com'];
+  const adminEmails = ['abdulrafay40023@gmail.com', 'support@leadzmaker.com', 'garryamelia6265@gmail.com', 'tzafar04@gmail.com', 'annusraees@gmail.com'];
   const isAdmin = currentAgent.role === 'admin' || (currentAgent.email && adminEmails.includes(currentAgent.email.toLowerCase()));
 
   // Working agents rule: Only visible when visitor requested a real human agent OR already claimed by this agent
@@ -347,13 +347,13 @@ export default function ChatsPage() {
             if (id) {
               try {
                 localStorage.setItem(key, id);
-                localStorage.setItem('teals_selected_chat_id', id);
+                localStorage.setItem('lm_selected_chat_id', id);
               } catch {}
               markConversationAsRead(id);
             } else {
               try {
                 localStorage.removeItem(key);
-                localStorage.removeItem('teals_selected_chat_id');
+                localStorage.removeItem('lm_selected_chat_id');
               } catch {}
             }
           }}
