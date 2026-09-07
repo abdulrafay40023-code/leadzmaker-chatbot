@@ -27,10 +27,11 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="h-16 border-b border-dark-border bg-[#080d1a]/90 backdrop-blur-md px-6 flex items-center justify-between sticky top-0 z-40">
       <div className="flex items-center space-x-3">
-        <span className="text-xs font-bold uppercase tracking-wider text-dark-muted">Workspace</span>
+        <span className="text-xs font-bold uppercase tracking-wider text-dark-muted">Platform</span>
         <span className="text-xs text-dark-border">/</span>
-        <span className="text-xs font-bold text-white bg-brand-primary/10 border border-brand-primary/20 px-2.5 py-1 rounded-lg">
-          Teals CRM
+        <span className="text-xs font-bold text-lime-400 bg-lime-500/10 border border-lime-500/30 px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-sm">
+          <span className="w-2 h-2 rounded-full bg-lime-400 animate-pulse" />
+          LeadzMaker
         </span>
       </div>
 
@@ -42,7 +43,7 @@ export const Header: React.FC<HeaderProps> = ({
             playVisitorAlertSound();
           }}
           title="Test 4-Tone Beep Chime"
-          className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-brand-primary/10 hover:bg-brand-primary/20 border border-brand-primary/30 text-brand-secondary text-xs font-semibold transition-all"
+          className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-lime-500/15 hover:bg-lime-500/25 border border-lime-500/30 text-lime-400 text-xs font-semibold transition-all shadow-sm"
         >
           <Bell className="w-3.5 h-3.5 animate-bounce" />
           <span>Test Beep 🔊</span>

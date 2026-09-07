@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Teals CRM - LiveChat & Visitor Intelligence Suite',
-  description: 'Real-time AI customer support, live visitor tracking, and hybrid human handoff SaaS platform.',
+  title: 'LeadzMaker LiveChat & Support Hub',
+  description: 'Real-time AI customer support, live visitor tracking, and hybrid human handoff for LeadzMaker.',
 };
 
 export default function RootLayout({

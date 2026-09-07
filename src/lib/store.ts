@@ -409,10 +409,7 @@ class GranularStore {
     const key = `conversations/${sanitizeKey(conv.id)}.json`;
     const payload = JSON.stringify(mergedConv);
     try {
-      await Promise.allSettled([
-        supabaseAdmin.storage.from('leadzmaker-live-store').upload(key, payload, { upsert: true, contentType: 'application/json' }),
-        supabaseAdmin.storage.from('teals-livechat').upload(key, payload, { upsert: true, contentType: 'application/json' })
-      ]);
+      await supabaseAdmin.storage.from('leadzmaker-live-store').upload(key, payload, { upsert: true, contentType: 'application/json' });
     } catch (e) {
       console.error('Cloud save conversation error:', e);
     }
@@ -523,7 +520,7 @@ class GranularStore {
       visitCountMap.set(key, (visitCountMap.get(key) || 0) + 1);
     });
 
-    const isGlobal = !propertySlug || propertySlug === 'all' || propertySlug === 'teals-crm';
+    const isGlobal = !propertySlug || propertySlug === 'all' || propertySlug === 'leadzmaker';
     const filteredSessions = isGlobal ? allSessions : allSessions.filter(s => s.property_slug === propertySlug);
     const rawLiveSessions = filteredSessions.filter(s => {
       const lastActive = new Date(s.last_active_at).getTime();
@@ -799,10 +796,10 @@ class GranularStore {
   }
 }
 
-const globalStore = global as unknown as { __tealsGranularStore?: GranularStore };
-if (!globalStore.__tealsGranularStore) {
-  globalStore.__tealsGranularStore = new GranularStore();
+const globalStore = global as unknown as { __lmGranularStore?: GranularStore };
+if (!globalStore.__lmGranularStore) {
+  globalStore.__lmGranularStore = new GranularStore();
 }
 
-export const granularStore = globalStore.__tealsGranularStore;
+export const granularStore = globalStore.__lmGranularStore;
 export const memoryStore = granularStore;

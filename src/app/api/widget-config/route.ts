@@ -4,7 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const propertySlug = searchParams.get('property') || 'teals-crm';
+    const propertySlug = searchParams.get('property') || 'leadzmaker';
 
     // Fetch property settings from DB or default
     const { data: property } = await supabaseAdmin
@@ -14,12 +14,10 @@ export async function GET(req: NextRequest) {
       .maybeSingle();
 
     const config = property || {
-      name: propertySlug === 'leadzmaker' ? 'Leadzmaker' : 'Teals CRM',
-      slug: propertySlug,
-      widget_color: propertySlug === 'leadzmaker' ? '#06b6d4' : '#6366f1',
-      greeting_message: propertySlug === 'leadzmaker' 
-        ? 'Welcome to Leadzmaker Support! Looking for targeted B2B leads?'
-        : 'Welcome to Teals CRM AI Assistant! How can we assist your sales team today?'
+      name: 'LeadzMaker',
+      slug: 'leadzmaker',
+      widget_color: '#84cc16',
+      greeting_message: 'Hey how can i help you ?'
     };
 
     return NextResponse.json({ config });

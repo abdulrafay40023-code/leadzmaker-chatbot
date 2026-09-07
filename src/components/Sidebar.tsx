@@ -73,12 +73,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div>
         {/* Brand */}
         <div className="h-16 flex items-center space-x-3 px-5 border-b border-dark-border">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-brand-primary to-brand-secondary flex items-center justify-center shadow-lg shadow-brand-primary/25">
-            <span className="text-white font-black text-lg">T</span>
+          <div className="w-9 h-9 rounded-full bg-black border border-lime-500/40 flex items-center justify-center overflow-hidden shadow-lg shadow-lime-500/20">
+            <img src="/lm-logo.png" alt="LeadzMaker" className="w-full h-full object-cover" />
           </div>
           <div>
-            <h2 className="text-sm font-bold text-white tracking-tight">Teals LiveChat</h2>
-            <p className="text-[10px] text-dark-muted">CRM AI Sales Hub</p>
+            <h2 className="text-sm font-bold text-white tracking-tight">LeadzMaker</h2>
+            <p className="text-[10px] text-lime-400 font-semibold tracking-wide">LiveChat & Support Hub</p>
           </div>
         </div>
 
@@ -94,12 +94,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 href={item.href}
                 className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
                   isActive
-                    ? 'bg-brand-primary text-white shadow-lg shadow-brand-primary/25'
-                    : 'text-dark-muted hover:text-white hover:bg-dark-cardHover'
+                    ? 'bg-lime-500/15 text-lime-400 border border-lime-500/30 shadow-[0_0_15px_rgba(132,204,22,0.15)] font-bold'
+                    : 'text-dark-muted hover:text-white hover:bg-dark-cardHover border border-transparent'
                 }`}
               >
                 <div className="flex items-center space-x-3">
-                  <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-dark-muted'}`} />
+                  <Icon className={`w-4 h-4 ${isActive ? 'text-lime-400' : 'text-dark-muted'}`} />
                   <span>{item.name}</span>
                 </div>
                 {item.badge !== null && (

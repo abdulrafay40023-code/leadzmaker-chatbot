@@ -8,15 +8,15 @@ import { WidgetChat } from '@/components/WidgetChat';
 export default function DemoPage() {
   return (
     <div className="min-h-screen bg-dark-bg text-dark-text relative">
-      {/* Teals CRM Header Mockup */}
+      {/* LeadzMaker Header Mockup */}
       <header className="h-16 border-b border-dark-border bg-dark-surface/80 px-6 flex items-center justify-between">
         <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-brand-primary to-brand-secondary flex items-center justify-center text-white font-bold">
-            T
+          <div className="w-8 h-8 rounded-full bg-black border border-lime-500/40 flex items-center justify-center overflow-hidden">
+            <img src="/lm-logo.png" alt="LeadzMaker" className="w-full h-full object-cover" />
           </div>
           <div>
-            <h1 className="text-sm font-bold text-dark-text">Teals CRM</h1>
-            <p className="text-[10px] text-dark-muted">AI Sales Suite (Live Demo Site)</p>
+            <h1 className="text-sm font-bold text-white">LeadzMaker</h1>
+            <p className="text-[10px] text-lime-400">B2B Lead Intelligence (Live Demo Site)</p>
           </div>
         </div>
 

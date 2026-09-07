@@ -44,7 +44,7 @@ export default function AllChatsSavePage() {
   const [selectedDateFilter, setSelectedDateFilter] = useState<string>('all');
 
   const websites = getAllWebsites();
-  const supabaseBucketUrl = 'https://supabase.com/dashboard/project/nyoegrnemmravwqdcqnp/storage/buckets/teals-live-store';
+  const supabaseBucketUrl = 'https://supabase.com/dashboard/project/hunccoihplbtitqdldjf/storage/buckets/leadzmaker-live-store';
 
   const fetchSavedChats = async () => {
     setLoading(true);
@@ -242,7 +242,7 @@ export default function AllChatsSavePage() {
     if (!selectedConversation) return;
     const lines = [
       `=========================================================`,
-      `TEALS CRM - SAVED CHAT TRANSCRIPT`,
+      `LEADZMAKER - SAVED CHAT TRANSCRIPT`,
       `Website: ${getWebsiteConfig(selectedConversation.property_slug).name}`,
       `Visitor: ${selectedConversation.visitor_name || 'Anonymous Visitor'} (${selectedConversation.visitor_email || 'No email'})`,
       `Visitor IP: ${selectedConversation.visitor_ip || 'Unknown'}`,

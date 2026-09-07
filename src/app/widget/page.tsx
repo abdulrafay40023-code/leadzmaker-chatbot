@@ -6,7 +6,7 @@ import { WidgetChat } from '@/components/WidgetChat';
 
 function WidgetInner() {
   const searchParams = useSearchParams();
-  const propertySlug = searchParams.get('property') || 'teals-crm';
+  const propertySlug = searchParams.get('property') || 'leadzmaker';
   const visitorToken = searchParams.get('token') || undefined;
   const sessionId = searchParams.get('session') || undefined;
   const pageUrl = searchParams.get('pageUrl') || searchParams.get('page') || '/';

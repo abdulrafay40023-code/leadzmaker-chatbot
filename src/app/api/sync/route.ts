@@ -4,7 +4,7 @@ import { granularStore } from '@/lib/store';
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const propertySlug = searchParams.get('property') || 'teals-crm';
+    const propertySlug = searchParams.get('property') || 'leadzmaker';
 
     const data = await granularStore.getAllActiveData(propertySlug);
 

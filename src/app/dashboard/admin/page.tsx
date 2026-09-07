@@ -123,10 +123,10 @@ export default function AdminPage() {
     }
   };
 
-  const scriptTag = `<!-- Teals CRM Live Chat Widget -->
+  const scriptTag = `<!-- LeadzMaker AI Live Chat Widget -->
 <script 
-  src="https://teals-livechat-saas.vercel.app/widget.js" 
-  data-property="teals-crm" 
+  src="https://leadzmaker-chatbot.vercel.app/widget.js" 
+  data-property="leadzmaker" 
   async>
 </script>`;
 
@@ -282,7 +282,7 @@ export default function AdminPage() {
       <div className="bg-dark-card border border-dark-border rounded-2xl p-6 shadow-xl">
         <div className="flex items-center space-x-2 mb-3">
           <Code2 className="w-5 h-5 text-brand-secondary" />
-          <h3 className="text-sm font-bold text-white">Embed Script for Teals CRM</h3>
+          <h3 className="text-sm font-bold text-white">Embed Script for LeadzMaker</h3>
         </div>
         <p className="text-xs text-dark-muted mb-4">
           Paste this script tag right before the closing <code className="text-brand-secondary font-mono">&lt;/body&gt;</code> tag on your CRM or website:

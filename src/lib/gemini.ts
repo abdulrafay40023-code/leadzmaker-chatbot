@@ -61,7 +61,7 @@ export function isGibberish(text: string): boolean {
 export async function generateAIChatResponse({
   messages,
   visitorName,
-  property = 'teals-crm',
+  property = 'leadzmaker',
   hostname
 }: {
   messages: { role: 'user' | 'model'; content: string }[];

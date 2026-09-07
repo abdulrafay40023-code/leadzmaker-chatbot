@@ -4,11 +4,9 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Users, MessageSquare, Eye, Radio, ArrowRight, RotateCcw,
-  ExternalLink, ShoppingCart, Rocket, BookOpen, PenTool, BookMarked,
-  Globe, Activity, Layers
+  ExternalLink, Globe, Activity, Shield, Archive, Sparkles, CheckCircle2
 } from 'lucide-react';
 import { useLiveSync } from '@/context/LiveSyncContext';
-import { getAllWebsites, WEBSITES } from '@/lib/websites-config';
 
 export default function OverviewDashboard() {
   const {
@@ -18,7 +16,6 @@ export default function OverviewDashboard() {
     todayCount,
     totalUniqueCount,
     chatCount,
-    websiteStats,
     resetAll
   } = useLiveSync();
 
@@ -32,7 +29,7 @@ export default function OverviewDashboard() {
 
   useEffect(() => {
     try {
-      const rawSession = localStorage.getItem('teals_agent_session');
+      const rawSession = localStorage.getItem('lm_agent_session') || localStorage.getItem('teals_agent_session');
       if (rawSession) {
         const parsed = JSON.parse(rawSession);
         setCurrentAgent(parsed);
@@ -42,31 +39,6 @@ export default function OverviewDashboard() {
 
   const adminEmails = ['abdulrafay40023@gmail.com', 'support@leadzmaker.com', 'garryamelia6265@gmail.com', 'tzafar04@gmail.com', 'annusraees@gmail.com'];
   const isAdmin = !currentAgent || currentAgent.role === 'admin' || (currentAgent.email && adminEmails.includes(currentAgent.email.toLowerCase()));
-
-  // Working agents rule: Only visible when visitor requested a real human agent OR already claimed by this agent
-  const isConvVisibleToAgent = (c: any) => {
-    if (isAdmin) return true;
-
-    const isMine = !!(
-      (c.claimed_by && c.claimed_by === currentAgent?.id) ||
-      (c.assigned_agent_id && c.assigned_agent_id === currentAgent?.id) ||
-      (c.assigned_agent && currentAgent && (
-        c.assigned_agent.toLowerCase() === currentAgent.email.toLowerCase() ||
-        c.assigned_agent.toLowerCase() === currentAgent.full_name.toLowerCase()
-      ))
-    );
-    if (isMine) return true;
-
-    const hasHumanNeed = (
-      c.status === 'queued' ||
-      c.status === 'open' ||
-      c.claimed === true ||
-      c.needs_human === true ||
-      c.mode === 'human'
-    );
-    const notClaimedByOther = !c.claimed_by || c.claimed_by === currentAgent?.id;
-    return hasHumanNeed && notClaimedByOther;
-  };
 
   const getTodayDayName = () => {
     try {
@@ -87,107 +59,20 @@ export default function OverviewDashboard() {
     }
   };
 
-  const websites = getAllWebsites();
-
-  const getWebsiteIcon = (slug: string) => {
-    switch (slug) {
-      case 'amz-solutions-hub': return ShoppingCart;
-      case 'amz-innovators': return Rocket;
-      case 'authors-breeze': return BookOpen;
-      case 'pro-book-publishing': return PenTool;
-      case 'amz-writers-hub': return BookMarked;
-      default: return Globe;
-    }
-  };
-
-  const getWebsiteTheme = (slug: string) => {
-    switch (slug) {
-      case 'amz-solutions-hub':
-        return {
-          accent: 'border-amber-500/30 hover:border-amber-500/70 hover:shadow-amber-500/10',
-          iconBg: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
-          badge: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
-          btn: 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border-amber-500/40'
-        };
-      case 'amz-innovators':
-        return {
-          accent: 'border-emerald-500/30 hover:border-emerald-500/70 hover:shadow-emerald-500/10',
-          iconBg: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
-          badge: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
-          btn: 'bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border-emerald-500/40'
-        };
-      case 'authors-breeze':
-        return {
-          accent: 'border-purple-500/30 hover:border-purple-500/70 hover:shadow-purple-500/10',
-          iconBg: 'bg-purple-500/15 text-purple-400 border-purple-500/30',
-          badge: 'bg-purple-500/15 text-purple-300 border-purple-500/30',
-          btn: 'bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border-purple-500/40'
-        };
-      case 'pro-book-publishing':
-        return {
-          accent: 'border-blue-500/30 hover:border-blue-500/70 hover:shadow-blue-500/10',
-          iconBg: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
-          badge: 'bg-blue-500/15 text-blue-300 border-blue-500/30',
-          btn: 'bg-blue-500/15 hover:bg-blue-500/25 text-blue-300 border-blue-500/40'
-        };
-      case 'amz-writers-hub':
-        return {
-          accent: 'border-rose-500/30 hover:border-rose-500/70 hover:shadow-rose-500/10',
-          iconBg: 'bg-rose-500/15 text-rose-400 border-rose-500/30',
-          badge: 'bg-rose-500/15 text-rose-300 border-rose-500/30',
-          btn: 'bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border-rose-500/40'
-        };
-      default:
-        return {
-          accent: 'border-blue-500/30 hover:border-blue-500/70 hover:shadow-blue-500/10',
-          iconBg: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
-          badge: 'bg-blue-500/15 text-blue-300 border-blue-500/30',
-          btn: 'bg-blue-500/15 hover:bg-blue-500/25 text-blue-300 border-blue-500/40'
-        };
-    }
-  };
-
-  const getSiteMetrics = (slug: string) => {
-    const stored = websiteStats?.[slug];
-    const cfg = WEBSITES[slug];
-
-    const liveForSite = liveVisitors.filter(v => {
-      const p = (v.property_slug || '').toLowerCase();
-      const page = (v.current_page || '').toLowerCase();
-      const ref = (v.referrer || '').toLowerCase();
-      return p === slug || (cfg && (p === cfg.domain || cfg.hostnames.some(h => p.includes(h)))) ||
-        (cfg && (page.includes(cfg.domain) || ref.includes(cfg.domain)));
-    });
-
-    const chatsForSite = conversations.filter(c => {
-      const p = (c.property_slug || '').toLowerCase();
-      const matchesSite = p === slug || (cfg && (p === cfg.domain || cfg.hostnames.some(h => p.includes(h))));
-      if (!matchesSite) return false;
-      return isConvVisibleToAgent(c);
-    });
-
-    return {
-      liveCount: Math.max(liveForSite.length, stored?.liveCount || 0),
-      todayCount: stored?.todayCount ?? 0,
-      totalUniqueCount: stored?.totalUniqueCount ?? 0,
-      chatCount: isAdmin ? (stored?.chatCount ?? chatsForSite.length) : chatsForSite.length,
-    };
-  };
-
   return (
     <div className="space-y-6">
       {/* Top Header Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center space-x-2.5">
-            <h2 className="text-xl font-bold text-white tracking-tight">Overview Dashboard</h2>
-            <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-brand-primary/15 text-brand-secondary border border-brand-primary/30 flex items-center space-x-1">
-              <Layers className="w-3 h-3" />
-              <span>5 Websites Connected</span>
+            <h2 className="text-xl font-bold text-white tracking-tight">LeadzMaker Live Support Hub</h2>
+            <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-lime-500/15 text-lime-400 border border-lime-500/30 flex items-center space-x-1 shadow-sm">
+              <span className="w-1.5 h-1.5 rounded-full bg-lime-400 animate-pulse" />
+              <span>leadzmaker.com</span>
             </span>
           </div>
           <p className="text-xs text-dark-muted mt-1">
-            Real-time multi-website live traffic, today&apos;s visitors & chat analytics
+            Real-time visitor tracking, active chat inquiries, audio claim beeps & Gemini AI statistics
           </p>
         </div>
 
@@ -198,136 +83,226 @@ export default function OverviewDashboard() {
             title="Reset all counters to 0"
             className="px-3.5 py-2 rounded-xl bg-dark-card hover:bg-dark-cardHover border border-dark-border text-dark-muted hover:text-white text-xs font-semibold transition-all flex items-center space-x-1.5 shadow-sm"
           >
-            <RotateCcw className={`w-3.5 h-3.5 ${resetting ? 'animate-spin text-brand-secondary' : ''}`} />
+            <RotateCcw className={`w-3.5 h-3.5 ${resetting ? 'animate-spin text-lime-400' : ''}`} />
             <span>Reset to 0</span>
           </button>
           <Link
             href="/dashboard/monitoring"
-            className="px-4 py-2 rounded-xl bg-brand-primary/15 hover:bg-brand-primary/25 border border-brand-primary/30 text-brand-secondary text-xs font-bold transition-all flex items-center space-x-2 w-fit shadow-sm"
+            className="px-4 py-2 rounded-xl bg-lime-500 hover:bg-lime-400 text-black text-xs font-bold transition-all flex items-center space-x-2 w-fit shadow-[0_0_15px_rgba(132,204,22,0.3)]"
           >
-            <Radio className="w-3.5 h-3.5 animate-pulse text-brand-emerald" />
+            <Radio className="w-3.5 h-3.5 animate-pulse" />
             <span>Open Live Monitoring</span>
           </Link>
         </div>
       </div>
 
-      {/* 5 Distinct Dedicated Website Analytics Cards */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Activity className="w-4 h-4 text-brand-secondary" />
-            <h3 className="text-sm font-bold text-white tracking-tight">
-              Website Analytics & Live Inboxes
-            </h3>
+      {/* 4 Core Metric Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Metric 1: Live Visitors */}
+        <div className="bg-[#0e1628] border border-lime-500/30 rounded-2xl p-5 shadow-sm relative overflow-hidden group hover:border-lime-500/60 transition-all">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-dark-muted uppercase tracking-wider">Live Traffic</span>
+            <span className="flex h-2.5 w-2.5 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-lime-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-lime-500" />
+            </span>
           </div>
-          <span className="text-[11px] text-dark-muted">
-            Independent live metrics per website
-          </span>
+          <div className="text-3xl font-black text-white mt-3">
+            {liveCount}
+          </div>
+          <p className="text-[11px] text-lime-400 font-medium mt-1 flex items-center gap-1">
+            <span>●</span> Active on leadzmaker.com
+          </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {websites.map((site) => {
-            const IconComponent = getWebsiteIcon(site.slug);
-            const theme = getWebsiteTheme(site.slug);
-            const stats = getSiteMetrics(site.slug);
+        {/* Metric 2: Today's Visitors */}
+        <div className="bg-[#0e1628] border border-dark-border rounded-2xl p-5 shadow-sm hover:border-dark-border/80 transition-all">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-dark-muted uppercase tracking-wider">Today&apos;s Visitors</span>
+            <Users className="w-4 h-4 text-dark-muted" />
+          </div>
+          <div className="text-3xl font-black text-white mt-3">
+            {todayCount}
+          </div>
+          <p className="text-[11px] text-dark-muted font-medium mt-1">
+            Unique visits today ({dayName})
+          </p>
+        </div>
 
-            return (
-              <div
-                key={site.slug}
-                className={`bg-[#0e1628] border ${theme.accent} rounded-2xl p-5 transition-all duration-200 hover:shadow-xl flex flex-col justify-between space-y-4`}
-              >
-                {/* Website Header & Link */}
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center space-x-3 min-w-0">
-                    <div className={`w-11 h-11 rounded-xl border flex items-center justify-center flex-shrink-0 ${theme.iconBg}`}>
-                      <IconComponent className="w-5 h-5" />
-                    </div>
-                    <div className="min-w-0">
-                      <h4 className="text-sm font-bold text-white truncate tracking-tight">
-                        {site.name}
-                      </h4>
-                      <a
-                        href={site.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-xs text-brand-secondary hover:text-white hover:underline flex items-center space-x-1 mt-0.5 truncate transition-colors"
-                      >
-                        <span className="truncate">{site.domain}</span>
-                        <ExternalLink className="w-3 h-3 flex-shrink-0" />
-                      </a>
-                    </div>
-                  </div>
+        {/* Metric 3: Total Unique */}
+        <div className="bg-[#0e1628] border border-dark-border rounded-2xl p-5 shadow-sm hover:border-dark-border/80 transition-all">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-dark-muted uppercase tracking-wider">Total Unique</span>
+            <Eye className="w-4 h-4 text-dark-muted" />
+          </div>
+          <div className="text-3xl font-black text-white mt-3">
+            {totalUniqueCount}
+          </div>
+          <p className="text-[11px] text-dark-muted font-medium mt-1">
+            Unique browser sessions
+          </p>
+        </div>
 
-                  {/* Category badge */}
-                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border flex-shrink-0 ${theme.badge}`}>
-                    {site.category === 'ecommerce' ? 'E-Commerce' : 'Publishing'}
-                  </span>
-                </div>
+        {/* Metric 4: Active Inquiries & Chats */}
+        <div className="bg-[#0e1628] border border-dark-border rounded-2xl p-5 shadow-sm hover:border-dark-border/80 transition-all">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-dark-muted uppercase tracking-wider">Active Inquiries</span>
+            <MessageSquare className="w-4 h-4 text-lime-400" />
+          </div>
+          <div className="text-3xl font-black text-white mt-3">
+            {chatCount}
+          </div>
+          <p className="text-[11px] text-lime-400 font-medium mt-1">
+            Live conversations
+          </p>
+        </div>
+      </div>
 
-                {/* 4 Stats Grid in this Card */}
-                <div className="grid grid-cols-2 gap-2.5 pt-1">
-                  {/* Stat 1: Live Traffic */}
-                  <div className="bg-[#0b101d] border border-dark-border/80 rounded-xl p-3">
-                    <div className="flex items-center justify-between text-[11px] text-dark-muted font-semibold">
-                      <span>Live Traffic</span>
-                      <span className={`w-2 h-2 rounded-full ${stats.liveCount > 0 ? 'bg-brand-emerald animate-ping' : 'bg-gray-600'}`} />
-                    </div>
-                    <div className="text-xl font-black text-white mt-1">
-                      {stats.liveCount}
-                    </div>
-                    <p className="text-[10px] text-brand-emerald font-medium mt-0.5">Active Now</p>
-                  </div>
-
-                  {/* Stat 2: Today's Visitors */}
-                  <div className="bg-[#0b101d] border border-dark-border/80 rounded-xl p-3">
-                    <div className="flex items-center justify-between text-[11px] text-dark-muted font-semibold">
-                      <span>Today&apos;s Visitors</span>
-                      <Users className="w-3.5 h-3.5 text-brand-secondary" />
-                    </div>
-                    <div className="text-xl font-black text-white mt-1">
-                      {stats.todayCount}
-                    </div>
-                    <p className="text-[10px] text-brand-secondary font-medium mt-0.5">Today ({dayName})</p>
-                  </div>
-
-                  {/* Stat 3: Total Unique */}
-                  <div className="bg-[#0b101d] border border-dark-border/80 rounded-xl p-3">
-                    <div className="flex items-center justify-between text-[11px] text-dark-muted font-semibold">
-                      <span>Total Unique</span>
-                      <Eye className="w-3.5 h-3.5 text-brand-secondary" />
-                    </div>
-                    <div className="text-xl font-black text-white mt-1">
-                      {stats.totalUniqueCount}
-                    </div>
-                    <p className="text-[10px] text-brand-emerald font-medium mt-0.5">Unique IPs</p>
-                  </div>
-
-                  {/* Stat 4: Active Chats */}
-                  <div className="bg-[#0b101d] border border-dark-border/80 rounded-xl p-3">
-                    <div className="flex items-center justify-between text-[11px] text-dark-muted font-semibold">
-                      <span>Active Chats</span>
-                      <MessageSquare className="w-3.5 h-3.5 text-brand-primary" />
-                    </div>
-                    <div className="text-xl font-black text-white mt-1">
-                      {stats.chatCount}
-                    </div>
-                    <p className="text-[10px] text-dark-muted font-medium mt-0.5">Live Handled</p>
-                  </div>
-                </div>
-
-                {/* Card Action Footer */}
-                <div className="pt-3 border-t border-dark-border/60 flex items-center justify-between gap-2">
-                  <Link
-                    href={`/dashboard/chats?website=${site.slug}`}
-                    className={`w-full py-2 px-3 rounded-xl border text-xs font-bold transition-all flex items-center justify-center space-x-1.5 shadow-sm ${theme.btn}`}
-                  >
-                    <span>Open Live Inbox</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </Link>
-                </div>
+      {/* Main Console Hub & Feature Cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column: LeadzMaker Platform Hub (2 cols) */}
+        <div className="lg:col-span-2 bg-[#0e1628] border border-dark-border rounded-2xl p-6 space-y-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center space-x-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-black border border-lime-500/40 flex items-center justify-center overflow-hidden shadow-lg shadow-lime-500/20 shrink-0">
+                <img src="/lm-logo.png" alt="LeadzMaker" className="w-full h-full object-cover" />
               </div>
-            );
-          })}
+              <div>
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <span>LeadzMaker AI Live Support Console</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-lime-500/15 text-lime-400 border border-lime-500/30 font-bold uppercase tracking-wider">
+                    Dedicated Suite
+                  </span>
+                </h3>
+                <a
+                  href="https://leadzmaker.com"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs text-lime-400 hover:text-lime-300 hover:underline flex items-center space-x-1 mt-0.5 transition-colors"
+                >
+                  <span>leadzmaker.com</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+            </div>
+
+            <Link
+              href="/dashboard/chats"
+              className="px-4 py-2 rounded-xl bg-lime-500 hover:bg-lime-400 text-black text-xs font-bold transition-all shadow-md flex items-center gap-2 shrink-0"
+            >
+              <span>Open Chats</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+
+          {/* Feature Badges */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+            <div className="bg-[#0a0f1d] border border-dark-border/80 rounded-xl p-3.5 space-y-1.5">
+              <div className="flex items-center space-x-2 text-xs font-bold text-white">
+                <Sparkles className="w-4 h-4 text-lime-400" />
+                <span>Gemini 1.5 Flash AI Assistant</span>
+              </div>
+              <p className="text-[11px] text-dark-muted leading-relaxed">
+                Trained specifically on Google Maps scraper, businesses without website, bulk emails, and pricing.
+              </p>
+            </div>
+
+            <div className="bg-[#0a0f1d] border border-dark-border/80 rounded-xl p-3.5 space-y-1.5">
+              <div className="flex items-center space-x-2 text-xs font-bold text-white">
+                <CheckCircle2 className="w-4 h-4 text-lime-400" />
+                <span>Out-Of-Scope Guardrail</span>
+              </div>
+              <p className="text-[11px] text-dark-muted leading-relaxed">
+                Automatically redirects irrelevant queries to <span className="text-lime-400">support@leadzmaker.com</span>.
+              </p>
+            </div>
+
+            <div className="bg-[#0a0f1d] border border-dark-border/80 rounded-xl p-3.5 space-y-1.5">
+              <div className="flex items-center space-x-2 text-xs font-bold text-white">
+                <Radio className="w-4 h-4 text-lime-400" />
+                <span>Continuous Audio Claim Beep</span>
+              </div>
+              <p className="text-[11px] text-dark-muted leading-relaxed">
+                Repeats audio notification whenever a visitor requests human support until an agent claims.
+              </p>
+            </div>
+
+            <div className="bg-[#0a0f1d] border border-dark-border/80 rounded-xl p-3.5 space-y-1.5">
+              <div className="flex items-center space-x-2 text-xs font-bold text-white">
+                <Archive className="w-4 h-4 text-lime-400" />
+                <span>Dedicated Supabase Storage</span>
+              </div>
+              <p className="text-[11px] text-dark-muted leading-relaxed">
+                Secure bucket <span className="text-lime-400">leadzmaker-live-store</span> stores all transcripts.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column: Fast Navigation Actions */}
+        <div className="bg-[#0e1628] border border-dark-border rounded-2xl p-6 flex flex-col justify-between space-y-4">
+          <div>
+            <h4 className="text-sm font-bold text-white tracking-tight flex items-center gap-2">
+              <Activity className="w-4 h-4 text-lime-400" />
+              <span>Quick Navigation</span>
+            </h4>
+            <p className="text-xs text-dark-muted mt-1">
+              Direct access to live operator consoles
+            </p>
+
+            <div className="space-y-2.5 mt-4">
+              <Link
+                href="/dashboard/monitoring"
+                className="w-full p-3 rounded-xl bg-[#0a0f1d] hover:bg-[#111a30] border border-dark-border hover:border-lime-500/40 text-xs font-semibold text-white flex items-center justify-between transition-all group"
+              >
+                <div className="flex items-center space-x-2.5">
+                  <Radio className="w-4 h-4 text-lime-400 group-hover:scale-110 transition-transform" />
+                  <span>Real-Time Visitor Monitor</span>
+                </div>
+                <ArrowRight className="w-3.5 h-3.5 text-dark-muted group-hover:translate-x-1 group-hover:text-lime-400 transition-all" />
+              </Link>
+
+              <Link
+                href="/dashboard/chats"
+                className="w-full p-3 rounded-xl bg-[#0a0f1d] hover:bg-[#111a30] border border-dark-border hover:border-lime-500/40 text-xs font-semibold text-white flex items-center justify-between transition-all group"
+              >
+                <div className="flex items-center space-x-2.5">
+                  <MessageSquare className="w-4 h-4 text-lime-400 group-hover:scale-110 transition-transform" />
+                  <span>Live Chats & Agent Claim</span>
+                </div>
+                <ArrowRight className="w-3.5 h-3.5 text-dark-muted group-hover:translate-x-1 group-hover:text-lime-400 transition-all" />
+              </Link>
+
+              <Link
+                href="/dashboard/saved-chats"
+                className="w-full p-3 rounded-xl bg-[#0a0f1d] hover:bg-[#111a30] border border-dark-border hover:border-lime-500/40 text-xs font-semibold text-white flex items-center justify-between transition-all group"
+              >
+                <div className="flex items-center space-x-2.5">
+                  <Archive className="w-4 h-4 text-lime-400 group-hover:scale-110 transition-transform" />
+                  <span>All Saved Chat Transcripts</span>
+                </div>
+                <ArrowRight className="w-3.5 h-3.5 text-dark-muted group-hover:translate-x-1 group-hover:text-lime-400 transition-all" />
+              </Link>
+
+              {isAdmin && (
+                <Link
+                  href="/dashboard/admin"
+                  className="w-full p-3 rounded-xl bg-[#0a0f1d] hover:bg-[#111a30] border border-dark-border hover:border-lime-500/40 text-xs font-semibold text-white flex items-center justify-between transition-all group"
+                >
+                  <div className="flex items-center space-x-2.5">
+                    <Shield className="w-4 h-4 text-lime-400 group-hover:scale-110 transition-transform" />
+                    <span>Support Agents & Access</span>
+                  </div>
+                  <ArrowRight className="w-3.5 h-3.5 text-dark-muted group-hover:translate-x-1 group-hover:text-lime-400 transition-all" />
+                </Link>
+              )}
+            </div>
+          </div>
+
+          <div className="pt-4 border-t border-dark-border/60 flex items-center justify-between text-[11px] text-dark-muted">
+            <span>Operator: <strong className="text-white">{currentAgent?.full_name || 'Admin'}</strong></span>
+            <span className="text-lime-400 font-semibold">{isAdmin ? 'Administrator' : 'Agent'}</span>
+          </div>
         </div>
       </div>
     </div>

@@ -333,7 +333,7 @@ export const LiveSyncProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const refreshSync = useCallback(async () => {
     try {
-      const res = await fetch('/api/sync?property=teals-crm');
+      const res = await fetch('/api/sync?property=leadzmaker');
       if (!res.ok) return;
       const data = await res.json();
 

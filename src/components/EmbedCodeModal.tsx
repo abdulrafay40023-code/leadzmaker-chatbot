@@ -18,9 +18,9 @@ export const EmbedCodeModal: React.FC<EmbedCodeModalProps> = ({
 
   if (!isOpen) return null;
 
-  const scriptTag = `<!-- Teals CRM Live Chat Widget -->
+  const scriptTag = `<!-- LeadzMaker AI Live Chat Widget -->
 <script 
-  src="${typeof window !== 'undefined' ? window.location.origin : 'https://your-domain.vercel.app'}/widget.js" 
+  src="${typeof window !== 'undefined' ? window.location.origin : 'https://leadzmaker-chatbot.vercel.app'}/widget.js" 
   data-property="${propertySlug}" 
   async>
 </script>`;
@@ -48,7 +48,7 @@ export const EmbedCodeModal: React.FC<EmbedCodeModalProps> = ({
         </div>
 
         <p className="text-xs text-dark-muted mb-4 leading-relaxed">
-          Copy and paste this snippet right before the closing <code className="text-brand-secondary font-mono">&lt;/body&gt;</code> tag on any website (e.g. Teals CRM or Leadzmaker).
+          Copy and paste this snippet right before the closing <code className="text-lime-400 font-mono">&lt;/body&gt;</code> tag on LeadzMaker.
         </p>
 
         <div className="relative bg-dark-bg border border-dark-border rounded-xl p-4 font-mono text-xs text-brand-secondary mb-5">

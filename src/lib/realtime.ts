@@ -1,7 +1,7 @@
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://nyoegrnemmravwqdcqnp.supabase.co';
-const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55b2Vncm5lbW1yYXZ3cWRjcW5wIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4Nzg0MzEzMywiZXhwIjoyMTAzNDE5MTMzfQ.Q44BHkMZ_j1HfPLiPkxHNtC5wwEvS72AYOsvjaqQ49Q';
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://hunccoihplbtitqdldjf.supabase.co';
+const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh1bmNjb2locGxidGl0cWRsZGpmIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTgzNzk0OSwiZXhwIjoyMDg3NDEzOTQ5fQ.DoPjhpNUmGldBUH48jQCi9t2ndrmIuG46kOrpgc1u5g';
 
-export const REALTIME_CHANNEL = 'teals-live-crm-stream';
+export const REALTIME_CHANNEL = 'leadzmaker-live-stream';
 
 export async function broadcastRealtimeEvent(event: string, payload: unknown): Promise<void> {
   try {

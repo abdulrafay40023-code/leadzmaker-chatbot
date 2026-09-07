@@ -13,12 +13,12 @@ export default function HomePage() {
       {/* Top Navbar */}
       <header className="flex items-center justify-between z-10 max-w-6xl mx-auto w-full">
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-primary to-brand-secondary flex items-center justify-center shadow-xl shadow-brand-primary/30">
-            <span className="text-white font-black text-xl">T</span>
+          <div className="w-10 h-10 rounded-full bg-black border border-lime-500/40 flex items-center justify-center overflow-hidden shadow-xl shadow-lime-500/20">
+            <img src="/lm-logo.png" alt="LeadzMaker" className="w-full h-full object-cover" />
           </div>
           <div>
-            <h1 className="text-base font-bold text-dark-text">Teals LiveChat SaaS</h1>
-            <p className="text-xs text-dark-muted">Real-Time AI & Human Support</p>
+            <h1 className="text-base font-bold text-white">LeadzMaker LiveChat</h1>
+            <p className="text-xs text-lime-400 font-medium">Real-Time AI & Human Support</p>
           </div>
         </div>
 
@@ -45,13 +45,13 @@ export default function HomePage() {
         </h1>
 
         <p className="text-sm sm:text-base text-dark-muted mt-6 max-w-2xl mx-auto leading-relaxed">
-          Embed modern live chat onto Teals CRM or Leadzmaker in seconds. Track visitors live with country geolocation, sound chimes, Gemini AI auto-support, and seamless live agent takeover.
+          Embed modern live chat onto LeadzMaker in seconds. Track visitors live with country geolocation, sound chimes, Gemini AI auto-support, and seamless live agent takeover.
         </p>
 
         <div className="flex items-center justify-center gap-4 mt-8">
           <Link
             href="/login"
-            className="px-8 py-3.5 rounded-xl bg-gradient-to-r from-brand-primary to-brand-primaryHover text-white text-sm font-bold shadow-xl shadow-brand-primary/30 hover:scale-105 transition-all flex items-center justify-center space-x-2"
+            className="px-8 py-3.5 rounded-xl bg-lime-500 hover:bg-lime-400 text-black text-sm font-bold shadow-xl shadow-lime-500/20 hover:scale-105 transition-all flex items-center justify-center space-x-2"
           >
             <span>Sign In to Agent Portal →</span>
           </Link>
@@ -87,7 +87,7 @@ export default function HomePage() {
 
       {/* Footer */}
       <footer className="text-center text-xs text-dark-muted py-4 border-t border-dark-border z-10">
-        Teals CRM LiveChat Suite &copy; {new Date().getFullYear()} — Built with Supabase & Google Gemini AI.
+        LeadzMaker LiveChat Suite &copy; {new Date().getFullYear()} — Built with Supabase & Google Gemini AI.
       </footer>
     </div>
   );
