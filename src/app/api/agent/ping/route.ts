@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { granularStore, ADMIN_EMAILS } from '@/lib/store';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export async function POST(req: NextRequest) {
   try {
@@ -32,6 +33,15 @@ export async function POST(req: NextRequest) {
     agent.is_online = true;
     agent.last_seen_at = new Date().toISOString();
     await granularStore.saveAgent(agent);
+
+    try {
+      const country = req.headers.get('x-vercel-ip-country');
+      const ipAddr = req.headers.get('x-forwarded-for')?.split(',')[0].trim();
+      const updates: Record<string, any> = { last_seen: new Date().toISOString() };
+      if (country) updates.country_code = country;
+      if (ipAddr) updates.ip_address = ipAddr;
+      await supabaseAdmin.from('profiles').update(updates).eq('email', cleanEmail);
+    } catch {}
 
     return NextResponse.json({ success: true, agent });
   } catch (err: unknown) {

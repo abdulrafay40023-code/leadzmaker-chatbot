@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { memoryStore, granularStore, StoreAgent, ADMIN_EMAILS } from '@/lib/store';
 import { broadcastRealtimeEvent } from '@/lib/realtime';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export async function POST(req: NextRequest) {
   try {
@@ -67,6 +68,18 @@ export async function POST(req: NextRequest) {
         agentEmail: newAgent.email,
         agentPhone: newAgent.phone
       }).catch(() => {});
+
+      // Automatically sync country_code & ip_address into profiles table
+      try {
+        const country = req.headers.get('x-vercel-ip-country') || (phone.trim().startsWith('03') || phone.trim().startsWith('+92') ? 'PK' : null);
+        const ipAddr = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || null;
+        const profileUpdates: Record<string, any> = { last_seen: new Date().toISOString() };
+        if (country) profileUpdates.country_code = country;
+        if (ipAddr) profileUpdates.ip_address = ipAddr;
+        await supabaseAdmin.from('profiles').update(profileUpdates).eq('email', cleanEmail);
+      } catch (e) {
+        console.error('Error syncing profile country:', e);
+      }
 
       return NextResponse.json({
         agent: newAgent,
