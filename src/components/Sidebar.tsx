@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Radio, MessageSquare, Shield, Archive } from 'lucide-react';
+import { MessageSquare, Shield, Archive } from 'lucide-react';
 
 interface SidebarProps {
   liveCount: number;
@@ -26,27 +26,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const navItems = [
     {
-      name: 'Dashboard',
-      href: '/dashboard',
-      icon: LayoutDashboard,
-      badge: null,
-      exact: true,
-      adminOnly: false
-    },
-    {
-      name: 'Monitoring',
-      href: '/dashboard/monitoring',
-      icon: Radio,
-      badge: liveCount > 0 ? liveCount : null,
-      badgeColor: 'bg-brand-emerald text-dark-bg',
-      adminOnly: false
-    },
-    {
       name: 'Active Chats',
       href: '/dashboard/chats',
       icon: MessageSquare,
-      badge: chatCount > 0 ? chatCount : null,
-      badgeColor: 'bg-rose-500 text-white shadow-md shadow-rose-500/30 font-bold animate-pulse',
+      badge: (unreadCount > 0 ? unreadCount : (chatCount > 0 ? chatCount : null)),
+      badgeColor: 'bg-rose-500 text-white shadow-lg shadow-rose-500/50 font-black animate-pulse',
       adminOnly: false
     },
     {
@@ -66,16 +50,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
   ];
 
-  // Strict Agent Access Control: Non-admins ONLY see Live Chatbot
+  // Working Agent Access: Working agents ONLY see Active Chats & All Chats Save Page
   const visibleItems = isAdmin 
     ? navItems 
     : [
         {
-          name: 'Live Chatbot',
+          name: 'Active Chats',
           href: '/dashboard/chats',
           icon: MessageSquare,
           badge: chatCount > 0 ? chatCount : null,
           badgeColor: 'bg-rose-500 text-white shadow-md shadow-rose-500/30 font-bold animate-pulse',
+          adminOnly: false
+        },
+        {
+          name: 'All Chats Save Page',
+          href: '/dashboard/saved-chats',
+          icon: Archive,
+          badge: null,
           adminOnly: false
         }
       ];
@@ -97,7 +88,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Navigation Links */}
         <nav className="p-3 space-y-1.5 mt-2">
           {visibleItems.map((item) => {
-            const isActive = item.exact ? pathname === item.href : pathname.startsWith(item.href);
+            const isActive = pathname.startsWith(item.href);
             const Icon = item.icon;
 
             return (

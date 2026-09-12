@@ -3,14 +3,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { REALTIME_CHANNEL } from '@/lib/realtime';
-import {
-  playVisitorAlertSound,
-  playChatMessageAlertSound,
-  playHandoffAlertSound,
-  startContinuousHandoffRinger,
-  stopContinuousHandoffRinger,
-  initAndUnlockAudio,
-} from '@/lib/audio';
+import { playChatMessageAlertSound } from '@/lib/audio';
 
 const ADMIN_EMAILS = ['abdulrafay40023@gmail.com', 'support@leadzmaker.com'];
 
@@ -86,6 +79,14 @@ export interface WebsiteStatItem {
   chatCount: number;
 }
 
+export interface ToastNotification {
+  id: string;
+  senderName: string;
+  content: string;
+  conversationId: string;
+  timestamp: number;
+}
+
 interface LiveSyncContextType {
   liveVisitors: LiveVisitor[];
   conversations: LiveConversation[];
@@ -99,6 +100,9 @@ interface LiveSyncContextType {
   unreadCount: number;
   unreadConversationsCount: number;
   readConvMap: Record<string, string>;
+  toasts: ToastNotification[];
+  dismissToast: (id: string) => void;
+  requestNotificationPermission: () => Promise<string>;
   toggleSound: () => void;
   resetAll: () => Promise<void>;
   refreshSync: () => Promise<void>;
@@ -150,8 +154,21 @@ export const LiveSyncProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [totalUniqueCount, setTotalUniqueCount] = useState<number>(0);
   const [pageViews, setPageViews] = useState<number>(0);
   const [websiteStats, setWebsiteStats] = useState<Record<string, WebsiteStatItem>>({});
-  const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        return localStorage.getItem('lm_sound_enabled') !== 'false';
+      } catch {}
+    }
+    return true;
+  });
   const soundEnabledRef = useRef<boolean>(true);
+  useEffect(() => {
+    soundEnabledRef.current = soundEnabled;
+    try {
+      localStorage.setItem('lm_sound_enabled', String(soundEnabled));
+    } catch {}
+  }, [soundEnabled]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
 
   const [readConvMap, setReadConvMap] = useState<Record<string, string>>({});
@@ -165,6 +182,35 @@ export const LiveSyncProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         if (saved) setReadConvMap(JSON.parse(saved));
       } catch {}
     }
+  }, []);
+
+  const [toasts, setToasts] = useState<ToastNotification[]>([]);
+
+  const dismissToast = useCallback((id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  }, []);
+
+  const requestNotificationPermission = useCallback(async () => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      try {
+        const perm = await Notification.requestPermission();
+        return perm;
+      } catch {}
+    }
+    return 'default';
+  }, []);
+
+  const flashTabTitle = useCallback((sender: string) => {
+    if (typeof document === 'undefined') return;
+    const cleanTitle = document.title.replace(/^🔔\s*\(New Msg\)\s*/, '');
+    document.title = `🔔 (New Msg) ${sender} - ${cleanTitle}`;
+    const clearFlash = () => {
+      document.title = cleanTitle;
+      window.removeEventListener('focus', clearFlash);
+      window.removeEventListener('click', clearFlash);
+    };
+    window.addEventListener('focus', clearFlash, { once: true });
+    window.addEventListener('click', clearFlash, { once: true });
   }, []);
 
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
@@ -239,30 +285,6 @@ export const LiveSyncProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const chatCount = userVisibleConversations.length;
 
-  // Continuous Repeating Ringer for Unclaimed Human Agent Requests
-  useEffect(() => {
-    if (!soundEnabled) {
-      stopContinuousHandoffRinger();
-      return;
-    }
-
-    const hasUnclaimedHandoff = conversations.some(c => {
-      const isClaimed = !!(c.assigned_agent_id || c.claimed_by || c.claimed === true);
-      const isPendingHuman = c.status === 'pending_agent' || c.mode === 'human' || c.needs_human === true;
-      return isPendingHuman && !isClaimed;
-    });
-
-    if (hasUnclaimedHandoff) {
-      startContinuousHandoffRinger();
-    } else {
-      stopContinuousHandoffRinger();
-    }
-
-    return () => {
-      stopContinuousHandoffRinger();
-    };
-  }, [conversations, soundEnabled]);
-
   const markConversationAsRead = useCallback((convId: string) => {
     if (!convId) return;
 
@@ -291,6 +313,16 @@ export const LiveSyncProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       } catch {}
     }
 
+    // Persist read status to backend database
+    fetch('/api/chat/read', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        conversationId: convId,
+        agentName: currentUser?.full_name || 'Agent'
+      })
+    }).catch(() => {});
+
     // Inform visitor widget that an agent has seen their message
     channelRef.current?.send({
       type: 'broadcast',
@@ -301,34 +333,21 @@ export const LiveSyncProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         readerName: currentUser?.full_name || 'Agent'
       }
     });
+
+    // Also notify parent window (e.g. LeadzMaker Admin Panel)
+    if (typeof window !== 'undefined' && window.parent && window.parent !== window) {
+      try {
+        window.parent.postMessage({ type: 'leadzmaker_chat_read', conversationId: convId }, '*');
+      } catch {}
+    }
   }, [conversations]);
 
   const recentArrivalTimestamps = useRef<Map<string, number>>(new Map());
   const initialLoadDone = useRef(false);
   const prevLiveCountRef = useRef<number>(0);
 
-  const triggerArrivalBeepIfNew = useCallback((key: string, source: string) => {
-    if (!key) return;
-
-    let currentUser: { role?: string; email?: string } | null = null;
-    try {
-      const rawSession = localStorage.getItem('lm_agent_session');
-      if (rawSession) currentUser = JSON.parse(rawSession);
-    } catch {}
-    // Working agents do NOT get visitor arrival beeps (only admins monitor live arrivals)
-    if (!checkIsAdmin(currentUser)) return;
-
-    const now = Date.now();
-    const lastTime = recentArrivalTimestamps.current.get(key) || 0;
-    if (now - lastTime > 15000) {
-      console.log(`[SYNC_DEBUG] Triggering arrival alert for key: ${key} via ${source}`);
-      recentArrivalTimestamps.current.set(key, now);
-      if (soundEnabledRef.current) {
-        initAndUnlockAudio().then(() => {
-          playVisitorAlertSound();
-        });
-      }
-    }
+  const triggerArrivalBeepIfNew = useCallback((_key: string, _source: string) => {
+    // Arrival beep disabled
   }, []);
 
   const refreshSync = useCallback(async () => {
@@ -528,8 +547,49 @@ export const LiveSyncProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         const isAgentMsg = !!(message && (message.sender_type === 'agent' || (message.sender_type as string) === 'admin' || message.sender_type === 'system'));
         const isHandoffEvent = isVisitorMsg && (isHandoffRequested || conversation?.status === 'pending_agent' || conversation?.needs_human === true);
 
-        // When a new visitor message arrives, immediately invalidate read map for this conversation
+        // When a new visitor message arrives, trigger desktop & in-app notifications
         if (isVisitorMsg && conversation?.id) {
+          const sender = conversation?.visitor_name || message?.sender_name || 'Visitor';
+          const bodyText = message?.content || 'New message received';
+
+          if (soundEnabledRef.current) {
+            playChatMessageAlertSound();
+          }
+
+          // 1. HTML5 Desktop Browser Notification
+          if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+            try {
+              const notif = new Notification(`💬 ${sender}`, {
+                body: bodyText.length > 90 ? bodyText.substring(0, 90) + '...' : bodyText,
+                icon: '/favicon.ico',
+                tag: conversation.id,
+                renotify: true
+              });
+              notif.onclick = () => {
+                window.focus();
+                notif.close();
+              };
+            } catch (err) {
+              console.warn('Failed to fire browser notification:', err);
+            }
+          }
+
+          // 2. Tab Title Alert
+          flashTabTitle(sender);
+
+          // 3. In-App Floating Toast Alert
+          const newToast: ToastNotification = {
+            id: 't_' + Date.now() + Math.random().toString(36).substring(2, 6),
+            senderName: sender,
+            content: bodyText,
+            conversationId: conversation.id,
+            timestamp: Date.now()
+          };
+          setToasts(prev => [...prev.slice(-3), newToast]);
+          setTimeout(() => {
+            setToasts(prev => prev.filter(t => t.id !== newToast.id));
+          }, 6000);
+
           setReadConvMap(rMap => {
             if (!rMap[conversation.id]) return rMap;
             const next = { ...rMap };
@@ -622,19 +682,6 @@ export const LiveSyncProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             return updated;
           });
         }
-
-        // Beep logic (instant audio chimes): ONLY play when VISITOR sends a message!
-        if (soundEnabledRef.current && isVisitorMsg && !isAgentMsg) {
-          if (isHandoffEvent) {
-            // Customer requested real human agent: urgent alert chime
-            playHandoffAlertSound();
-          } else {
-            // Normal visitor message: Working agents only hear visitor message chime if it is their claimed chat (admins hear all)
-            if (isAdmin || isMyClaimedChat) {
-              playChatMessageAlertSound();
-            }
-          }
-        }
       })
       .on('broadcast', { event: 'new_conversation' }, (payload: unknown) => {
         const raw = (payload as Record<string, unknown>)?.payload || payload;
@@ -720,9 +767,6 @@ export const LiveSyncProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         const isAdmin = checkIsAdmin(currentUser);
 
         if (isAdmin) {
-          if (soundEnabledRef.current) {
-            playHandoffAlertSound();
-          }
           if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
             const raw = (payload as Record<string, unknown>)?.payload || payload;
             const agentName = (raw as Record<string, unknown>)?.agentName || 'A new agent';
@@ -838,29 +882,6 @@ export const LiveSyncProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     await refreshSync();
   };
 
-  // Silently attempt audio unlock on every user interaction (persistent, not once)
-  useEffect(() => {
-    const tryUnlock = () => { initAndUnlockAudio().catch(() => {}); };
-    tryUnlock(); // try immediately
-    window.addEventListener('click', tryUnlock, { passive: true });
-    window.addEventListener('keydown', tryUnlock, { passive: true });
-    window.addEventListener('pointerdown', tryUnlock, { passive: true });
-    // CRITICAL: When tab becomes visible again (Chrome suspends AudioContext in background)
-    // flush any pending beeps that accumulated while tab was in background
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') {
-        initAndUnlockAudio().catch(() => {});
-      }
-    };
-    document.addEventListener('visibilitychange', onVisible);
-    return () => {
-      window.removeEventListener('click', tryUnlock);
-      window.removeEventListener('keydown', tryUnlock);
-      window.removeEventListener('pointerdown', tryUnlock);
-      document.removeEventListener('visibilitychange', onVisible);
-    };
-  }, []);
-
   // Keep liveCount ref updated without playing noisy phantom chimes
   useEffect(() => {
     prevLiveCountRef.current = liveCount;
@@ -883,6 +904,9 @@ export const LiveSyncProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         unreadCount,
         unreadConversationsCount,
         readConvMap,
+        toasts,
+        dismissToast,
+        requestNotificationPermission,
         toggleSound,
         resetAll,
         refreshSync,
@@ -892,6 +916,35 @@ export const LiveSyncProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       }}
     >
       {children}
+      {/* Floating In-App Visitor Message Toast Alerts */}
+      {toasts.length > 0 && (
+        <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm pointer-events-none">
+          {toasts.map(t => (
+            <div
+              key={t.id}
+              className="pointer-events-auto bg-[#0b1220] border border-blue-500/50 text-white p-3.5 rounded-xl shadow-2xl shadow-blue-500/25 flex items-start space-x-3 transition-all animate-in slide-in-from-bottom-3 duration-200"
+            >
+              <div className="w-8 h-8 rounded-full bg-blue-500/20 border border-blue-400/30 flex items-center justify-center text-sm flex-shrink-0 mt-0.5">
+                💬
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold text-white truncate">{t.senderName}</p>
+                  <button
+                    type="button"
+                    onClick={() => dismissToast(t.id)}
+                    className="text-gray-400 hover:text-white text-xs ml-2 p-0.5 rounded"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <p className="text-xs text-gray-300 line-clamp-2 mt-0.5 font-medium">{t.content}</p>
+                <p className="text-[10px] text-blue-400 mt-1 font-semibold">New visitor message</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </LiveSyncContext.Provider>
   );
 };

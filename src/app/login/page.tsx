@@ -13,25 +13,27 @@ export default function LoginPage() {
   // Check if already authenticated
   useEffect(() => {
     const checkSession = async () => {
+      const rawSession = typeof window !== 'undefined' ? localStorage.getItem('lm_agent_session') : null;
+      if (rawSession) {
+        try {
+          const parsed = JSON.parse(rawSession);
+          const adminEmails = ['abdulrafay40023@gmail.com', 'support@leadzmaker.com'];
+          const isAdm = parsed?.role === 'admin' || (parsed?.email && adminEmails.includes(parsed.email?.toLowerCase()));
+          if (parsed?.status === 'approved' || isAdm) {
+            router.push('/dashboard/chats');
+            return;
+          } else if (parsed?.status === 'pending') {
+            router.push('/auth/callback');
+            return;
+          }
+        } catch {
+          // ignore
+        }
+      }
+
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user?.email) {
-        const rawSession = localStorage.getItem('lm_agent_session');
-        if (rawSession) {
-          try {
-            const parsed = JSON.parse(rawSession);
-            const adminEmails = ['abdulrafay40023@gmail.com', 'support@leadzmaker.com'];
-            const isAdm = parsed?.role === 'admin' || (parsed?.email && adminEmails.includes(parsed.email.toLowerCase()));
-            if (parsed?.status === 'approved' || isAdm) {
-              if (isAdm) {
-                router.push('/dashboard');
-              } else {
-                router.push('/dashboard/chats');
-              }
-            }
-          } catch {
-            // ignore
-          }
-        }
+        router.push('/auth/callback');
       }
     };
     checkSession();

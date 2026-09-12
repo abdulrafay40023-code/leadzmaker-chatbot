@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Sidebar } from '@/components/Sidebar';
 import { Header } from '@/components/Header';
 import { EmbedCodeModal } from '@/components/EmbedCodeModal';
+import { ApprovalBanner, PendingAgent } from '@/components/ApprovalBanner';
 import { supabase } from '@/lib/supabase';
 import { LiveSyncProvider, useLiveSync } from '@/context/LiveSyncContext';
 
@@ -20,6 +21,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   } | null>(null);
 
   const [isEmbedModalOpen, setIsEmbedModalOpen] = useState(false);
+  const [pendingAgents, setPendingAgents] = useState<PendingAgent[]>([]);
   const [pendingAgentsCount, setPendingAgentsCount] = useState(0);
   const prevPendingCountRef = React.useRef<number | null>(null);
 
@@ -124,17 +126,19 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         const appRes = await fetch('/api/agent/approvals');
         if (appRes.ok) {
           const appData = await appRes.json();
-          const count = appData.pendingAgents ? appData.pendingAgents.length : 0;
-          if (prevPendingCountRef.current !== null && count > prevPendingCountRef.current) {
+          const list: PendingAgent[] = Array.isArray(appData.pendingAgents) ? appData.pendingAgents : [];
+          setPendingAgents(list);
+          setPendingAgentsCount(list.length);
+
+          if (prevPendingCountRef.current !== null && list.length > prevPendingCountRef.current) {
             if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
               new Notification('New Agent Approval Request', {
-                body: `You have ${count} pending agent registration(s) waiting for approval!`,
+                body: `You have ${list.length} pending agent registration(s) waiting for approval!`,
                 icon: '/favicon.ico'
               });
             }
           }
-          prevPendingCountRef.current = count;
-          setPendingAgentsCount(count);
+          prevPendingCountRef.current = list.length;
         }
       } catch {}
     };
@@ -142,6 +146,48 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     const interval = setInterval(fetchApprovals, 2000);
     return () => clearInterval(interval);
   }, [isAdmin]);
+
+  const handleApproveAgent = async (agentId: string) => {
+    try {
+      const res = await fetch('/api/agent/approvals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agentId, action: 'approve' })
+      });
+      if (res.ok) {
+        const appRes = await fetch('/api/agent/approvals');
+        if (appRes.ok) {
+          const appData = await appRes.json();
+          const list: PendingAgent[] = Array.isArray(appData.pendingAgents) ? appData.pendingAgents : [];
+          setPendingAgents(list);
+          setPendingAgentsCount(list.length);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleRejectAgent = async (agentId: string) => {
+    try {
+      const res = await fetch('/api/agent/approvals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agentId, action: 'reject' })
+      });
+      if (res.ok) {
+        const appRes = await fetch('/api/agent/approvals');
+        if (appRes.ok) {
+          const appData = await appRes.json();
+          const list: PendingAgent[] = Array.isArray(appData.pendingAgents) ? appData.pendingAgents : [];
+          setPendingAgents(list);
+          setPendingAgentsCount(list.length);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -171,6 +217,13 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         />
 
         <main className="flex-1 overflow-y-auto p-6">
+          {isAdmin && pendingAgents.length > 0 && (
+            <ApprovalBanner
+              pendingAgents={pendingAgents}
+              onApprove={handleApproveAgent}
+              onReject={handleRejectAgent}
+            />
+          )}
           {children}
         </main>
       </div>

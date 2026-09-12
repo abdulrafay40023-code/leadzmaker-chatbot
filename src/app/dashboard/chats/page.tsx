@@ -18,17 +18,7 @@ export default function ActiveChatsPage() {
     return `lm_selected_chat_${email.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
   };
 
-  const [selectedChatId, setSelectedChatId] = useState<string | null>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const raw = localStorage.getItem('lm_agent_session');
-        const email = raw ? JSON.parse(raw)?.email : undefined;
-        const key = getSelectedKey(email);
-        return localStorage.getItem(key) || localStorage.getItem('lm_selected_chat_id') || null;
-      } catch {}
-    }
-    return null;
-  });
+  const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
 
   const { conversations, refreshSync, markConversationAsRead } = useLiveSync();
 
@@ -51,9 +41,6 @@ export default function ActiveChatsPage() {
           };
           localStorage.setItem('lm_agent_session', JSON.stringify(ssoAgent));
           setCurrentAgent(ssoAgent);
-          const key = getSelectedKey(cleanEmail);
-          const saved = localStorage.getItem(key);
-          if (saved) setSelectedChatId(saved);
           return;
         }
       }
@@ -64,9 +51,6 @@ export default function ActiveChatsPage() {
       try {
         const parsed = JSON.parse(rawSession);
         setCurrentAgent(parsed);
-        const key = getSelectedKey(parsed.email);
-        const saved = localStorage.getItem(key);
-        if (saved) setSelectedChatId(saved);
       } catch {}
     }
   }, []);

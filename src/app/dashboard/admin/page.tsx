@@ -43,7 +43,7 @@ export default function AdminPage() {
       const adminEmails = ['abdulrafay40023@gmail.com', 'support@leadzmaker.com'];
       const isAdm = agent.role === 'admin' || (agent.email && adminEmails.includes(agent.email.toLowerCase()));
       if (!isAdm) {
-        router.push('/dashboard');
+        router.push('/dashboard/chats');
         return;
       }
       setCurrentAgent(agent);

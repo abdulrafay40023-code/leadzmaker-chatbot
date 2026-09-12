@@ -38,6 +38,19 @@ export default function AuthCallbackPage() {
         if (sessionErr || !session?.user?.email) {
           const { data: { user } } = await supabase.auth.getUser();
           if (!user?.email) {
+            // Check if there is an existing agent session saved in localStorage before redirecting
+            if (typeof window !== 'undefined') {
+              const rawSession = localStorage.getItem('lm_agent_session');
+              if (rawSession) {
+                try {
+                  const savedAgent = JSON.parse(rawSession);
+                  if (savedAgent?.email) {
+                    await processUser(savedAgent.email, savedAgent.full_name || '');
+                    return;
+                  }
+                } catch {}
+              }
+            }
             router.push('/login');
             return;
           }
@@ -74,15 +87,14 @@ export default function AuthCallbackPage() {
       } else if (data.status === 'pending') {
         setAgentData(data.agent);
         setStep('pending');
-      } else if (data.status === 'approved') {
-        localStorage.setItem('lm_agent_session', JSON.stringify(data.agent));
-        const adminEmails = ['abdulrafay40023@gmail.com', 'support@leadzmaker.com'];
-        const isAdm = data.agent?.role === 'admin' || (data.agent?.email && adminEmails.includes(data.agent.email.toLowerCase()));
-        if (isAdm) {
-          router.push('/dashboard');
-        } else {
-          router.push('/dashboard/chats');
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('lm_agent_session', JSON.stringify(data.agent));
         }
+      } else if (data.status === 'approved') {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('lm_agent_session', JSON.stringify(data.agent));
+        }
+        router.push('/dashboard/chats');
       }
       setLoading(false);
     };
@@ -107,11 +119,16 @@ export default function AuthCallbackPage() {
       const data = await res.json();
       if (res.ok) {
         if (data.status === 'approved') {
-          localStorage.setItem('lm_agent_session', JSON.stringify(data.agent));
-          router.push('/dashboard');
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('lm_agent_session', JSON.stringify(data.agent));
+          }
+          router.push('/dashboard/chats');
         } else {
           setAgentData(data.agent);
           setStep('pending');
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('lm_agent_session', JSON.stringify(data.agent));
+          }
         }
       } else {
         setError(data.error || 'Failed to submit profile');
@@ -156,13 +173,7 @@ export default function AuthCallbackPage() {
           if (approvedAgent) {
             localStorage.setItem('lm_agent_session', JSON.stringify(approvedAgent));
           }
-          const adminEmails = ['abdulrafay40023@gmail.com', 'support@leadzmaker.com'];
-          const isAdm = approvedAgent?.role === 'admin' || (approvedEmail && adminEmails.includes(approvedEmail.toLowerCase()));
-          if (isAdm) {
-            router.push('/dashboard');
-          } else {
-            router.push('/dashboard/chats');
-          }
+          router.push('/dashboard/chats');
         }
       })
       .subscribe();
@@ -178,7 +189,7 @@ export default function AuthCallbackPage() {
           const data = await res.json();
           if (data.status === 'approved') {
             localStorage.setItem('lm_agent_session', JSON.stringify(data.agent));
-            router.push('/dashboard');
+            router.push('/dashboard/chats');
           }
         }
       } catch {}

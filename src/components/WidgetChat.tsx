@@ -306,9 +306,7 @@ export const WidgetChat: React.FC<WidgetChatProps> = ({
       const parsedConvs: SavedConvSummary[] = rawConvList ? JSON.parse(rawConvList) : [];
       setSavedConversations(parsedConvs);
 
-      const hasRealConversations = parsedConvs.length > 0 && parsedConvs.some(c => c.lastMessage && c.lastMessage !== DEFAULT_GREETING);
-
-      if (savedName && savedEmail && submitted === 'true' && hasRealConversations) {
+      if (savedName && savedEmail && submitted === 'true') {
         setUserName(savedName);
         setUserEmail(savedEmail);
         setHasSubmittedLead(true);
@@ -554,15 +552,22 @@ export const WidgetChat: React.FC<WidgetChatProps> = ({
             setLoading(false);
           }
 
+          // Instantly switch to Real Agent mode and pop bubble when an agent replies
+          if (message?.sender_type === 'agent') {
+            setIsHumanConnected(true);
+            setAgentName(message.sender_name || 'Real Agent');
+            setShowGreetingBubble(true);
+          }
+
           setMessages((prev) => {
             const nextList = [...prev];
             if (message) nextList.push(message);
             if (systemMessage) nextList.push(systemMessage);
             return dedupeMessages(nextList, siteGreeting, siteAiName);
           });
-          if (conv && conv.mode === 'human' && conv.assigned_agent_name) {
+          if (conv && conv.mode === 'human') {
             setIsHumanConnected(true);
-            setAgentName(conv.assigned_agent_name);
+            if (conv.assigned_agent_name) setAgentName(conv.assigned_agent_name);
           }
         }
       })
@@ -990,10 +995,10 @@ export const WidgetChat: React.FC<WidgetChatProps> = ({
 
     const cleanHandoffCheck = (text: string) => {
       const clean = (text || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
-      const hasDirect = /(real person|real human|live agent|human agent|not ai|stop ai|human please|agent please|talk to human|talk to agent|speak to agent|connect to agent|speak to human|talk to a person|real support|insan se baat|bande se baat|real banda|actual person|actual human|talk to real person|speak to real person|chat with human|human support|live support)/i.test(clean);
+      const hasDirect = /(real person|real human|live agent|human agent|real agent|not ai|stop ai|human please|agent please|talk to human|talk to agent|speak to agent|connect to agent|speak to human|talk to a person|real support|insan se baat|bande se baat|bndey sy baat|bnde se baat|real bndey|real banda|actual person|actual human|talk to real person|speak to real person|chat with human|human support|live support|agent chahiye|insan chahiye|agent se baat|representative)/i.test(clean);
       if (hasDirect) return true;
-      const humans = ['human', 'real person', 'live person', 'live agent', 'representative', 'support person', 'insan', 'real banda'];
-      const actions = ['talk', 'speak', 'connect', 'transfer', 'switch'];
+      const humans = ['human', 'real person', 'live person', 'live agent', 'real agent', 'representative', 'support person', 'insan', 'real banda', 'bndey', 'bande', 'agent'];
+      const actions = ['talk', 'speak', 'connect', 'transfer', 'switch', 'baat'];
       return actions.some(a => clean.includes(a)) && humans.some(h => clean.includes(h));
     };
 
@@ -1097,21 +1102,22 @@ export const WidgetChat: React.FC<WidgetChatProps> = ({
           <div onClick={() => {
             setIsOpen(true);
             setShowGreetingBubble(false);
-            if (hasSubmittedLead) {
-              handleOpenConversations();
-            } else {
-              setViewingHistory(false);
-            }
-          }} className="flex items-center space-x-2">
-            <span className="w-2 h-2 rounded-full bg-lime-400 animate-ping" />
-            <span className="text-xs font-semibold text-gray-100">{siteGreeting}</span>
+            setViewingHistory(false);
+          }} className="flex items-center space-x-2 max-w-[240px]">
+            <span className="w-2 h-2 rounded-full bg-lime-400 animate-ping flex-shrink-0" />
+            <span className="text-xs font-semibold text-gray-100 truncate">
+              {(() => {
+                const latestNonVisitor = [...messages].reverse().find(m => (m.sender_type === 'agent' || m.sender_type === 'ai') && m.id !== 'init-greet');
+                return latestNonVisitor ? latestNonVisitor.content : siteGreeting;
+              })()}
+            </span>
           </div>
           <button
             onClick={(e) => {
               e.stopPropagation();
               setShowGreetingBubble(false);
             }}
-            className="text-gray-400 hover:text-white p-0.5 rounded-full transition-colors"
+            className="text-gray-400 hover:text-white p-0.5 rounded-full transition-colors flex-shrink-0"
           >
             <X className="w-3.5 h-3.5" />
           </button>
@@ -1119,27 +1125,29 @@ export const WidgetChat: React.FC<WidgetChatProps> = ({
         </div>
       )}
 
-      {/* Clean Circular Launcher Button */}
+      {/* Clean Circular Launcher Button - Permanently LM Logo */}
       {!isOpen && (
         <button
           onClick={() => {
             setIsOpen(true);
             setShowGreetingBubble(false);
-            if (hasSubmittedLead) {
-              handleOpenConversations();
-            } else {
-              setViewingHistory(false);
-            }
+            setViewingHistory(false);
           }}
           className="w-14 h-14 rounded-full bg-black border-2 border-lime-400 shadow-[0_0_25px_rgba(132,204,22,0.45)] hover:scale-105 transition-all flex items-center justify-center relative group p-0 overflow-hidden cursor-pointer"
         >
           <AgentAvatar
-            type={isHumanConnected ? (agentName ? 'male' : 'female') : 'ai'}
-            name={agentName || ''}
+            type="ai"
+            name="LeadzMaker"
             size="xl"
             className="w-full h-full"
           />
-          <span className="absolute top-0 right-0 w-3.5 h-3.5 bg-lime-400 rounded-full border-2 border-black animate-pulse" />
+          {messages.some(m => (m.sender_type === 'agent' || m.sender_type === 'ai') && m.id !== 'init-greet') && messages[messages.length - 1].sender_type !== 'visitor' ? (
+            <span className="absolute top-0 right-0 min-w-[18px] h-[18px] px-1 bg-rose-500 text-white text-[10px] font-black rounded-full border-2 border-black flex items-center justify-center animate-pulse shadow-md shadow-rose-500/50">
+              1
+            </span>
+          ) : (
+            <span className="absolute top-0 right-0 w-3.5 h-3.5 bg-lime-400 rounded-full border-2 border-black animate-pulse" />
+          )}
         </button>
       )}
 

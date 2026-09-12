@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
     // Strict block: Agents and Admins cannot enter/chat as a client/visitor
     if (senderType === 'visitor' && await isStaffOrAdminAsync(senderEmail, senderName)) {
       return NextResponse.json({
-        error: 'Agents and Admins cannot initiate chats as clients. Aapko as a client aana hoga.',
+        error: 'Agents and Admins cannot initiate chats as clients. Please use a visitor session to test.',
         isStaffBlocked: true
       }, { status: 403 });
     }
@@ -324,9 +324,33 @@ export async function POST(req: NextRequest) {
     }
 
     // CASE 3: Agent message or human mode visitor message
+    let systemJoinMsg: StoreMessage | null = null;
     if (senderType === 'agent') {
       conv.last_agent_reply_at = now;
       conv.mode = 'human';
+      conv.status = 'active';
+      if (!conv.assigned_agent_name) {
+        conv.assigned_agent_name = senderName || 'Real Agent';
+      }
+
+      // If transitioning to human or first agent reply, inject system notice
+      const hasJoinMsg = (conv.messages || []).some(m => m.sender_type === 'system' && (
+        m.content.includes('joined the conversation') || m.content.includes('claimed') || m.content.includes('Real Agent')
+      ));
+      if (!hasJoinMsg) {
+        systemJoinMsg = {
+          id: 'msg_sys_join_' + conv.id + '_' + Date.now(),
+          conversation_id: conv.id,
+          sender_type: 'system',
+          sender_name: 'System',
+          content: 'Real Agent has joined the conversation.',
+          is_whisper: false,
+          seq: maxSeq + 1,
+          created_at: now
+        };
+        conv.messages.push(systemJoinMsg);
+        newMsg.seq = maxSeq + 2;
+      }
     } else {
       conv.last_visitor_message_at = now;
     }
@@ -335,6 +359,7 @@ export async function POST(req: NextRequest) {
       broadcastRealtimeEvent('chat_message', {
         conversationId: conv.id,
         message: newMsg,
+        systemMessage: systemJoinMsg,
         conversation: conv,
         isHandoffRequested: false
       }),

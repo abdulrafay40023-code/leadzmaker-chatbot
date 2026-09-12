@@ -633,14 +633,6 @@ class GranularStore {
       created_at: new Date().toISOString()
     };
 
-    const BLOCKED_EMAILS = [
-      'garryamelia6265@gmail.com',
-      'tzafar04@gmail.com',
-      'annusraees@gmail.com',
-      'hsalon680@gmail.com',
-      'hsalon580@gmail.com'
-    ];
-
     const agentMap = new Map<string, StoreAgent>();
     agentMap.set(adminAbdulRafay.email.toLowerCase(), adminAbdulRafay);
 
@@ -655,7 +647,7 @@ class GranularStore {
               if (text) {
                 const a: StoreAgent = JSON.parse(text);
                 const cleanEmail = (a.email || '').toLowerCase().trim();
-                if (!cleanEmail || BLOCKED_EMAILS.includes(cleanEmail)) return;
+                if (!cleanEmail) return;
 
                 if (cleanEmail === 'abdulrafay40023@gmail.com' || cleanEmail === 'support@leadzmaker.com') {
                   a.role = 'admin';
@@ -663,7 +655,12 @@ class GranularStore {
                 } else {
                   a.role = 'agent'; // Strictly agent, never admin!
                 }
-                agentMap.set(cleanEmail, a);
+
+                // If already in map, keep latest or approved status
+                const existing = agentMap.get(cleanEmail);
+                if (!existing || a.status === 'approved' || new Date(a.created_at || 0) > new Date(existing.created_at || 0)) {
+                  agentMap.set(cleanEmail, a);
+                }
               }
             }
           } catch {}
@@ -700,8 +697,16 @@ class GranularStore {
     }
     this.agents.set(agent.email.toLowerCase(), agent);
     try {
-      const key = `agents/${sanitizeKey(agent.id)}.json`;
-      await supabaseAdmin.storage.from(BUCKET).upload(key, JSON.stringify(agent), {
+      const payload = JSON.stringify(agent);
+      // Save by agent ID
+      const keyId = `agents/${sanitizeKey(agent.id)}.json`;
+      await supabaseAdmin.storage.from(BUCKET).upload(keyId, payload, {
+        upsert: true,
+        contentType: 'application/json'
+      });
+      // Also save by clean email key for direct lookup
+      const keyEmail = `agents/${sanitizeKey(agent.email.toLowerCase())}.json`;
+      await supabaseAdmin.storage.from(BUCKET).upload(keyEmail, payload, {
         upsert: true,
         contentType: 'application/json'
       });

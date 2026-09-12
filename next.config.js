@@ -3,12 +3,7 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-  experimental: {
-    serverComponentsExternalPackages: ['geoip-lite'],
-  },
+  serverExternalPackages: ['geoip-lite'],
   async headers() {
     return [
       {
@@ -46,6 +41,20 @@ const nextConfig = {
           { key: 'Content-Security-Policy', value: "frame-ancestors 'self' https://leadzmaker.com https://www.leadzmaker.com http://localhost:5173 http://localhost:3000 *;" }
         ],
       }
+    ];
+  },
+  async redirects() {
+    return [
+      {
+        source: '/dashboard',
+        destination: '/dashboard/chats',
+        permanent: false,
+      },
+      {
+        source: '/dashboard/monitoring',
+        destination: '/dashboard/chats',
+        permanent: false,
+      },
     ];
   },
 };

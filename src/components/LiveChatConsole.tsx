@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   MessageSquare, Send,
   Lock, UserPlus, MapPin, Eye, ShieldAlert, Bot, Trash2,
-  UserCheck, ArrowRightLeft, X, ExternalLink
+  UserCheck, ArrowRightLeft, X, ExternalLink, RotateCcw, Bell
 } from 'lucide-react';
 import { AgentAvatar } from '@/components/AgentAvatar';
 import { getCountryFlagUrl } from '@/lib/flags';
@@ -95,7 +95,18 @@ export const LiveChatConsole: React.FC<LiveChatConsoleProps> = ({
   const adminEmails = ['abdulrafay40023@gmail.com', 'support@leadzmaker.com'];
   const isAdmin = currentAgent.role === 'admin' || (currentAgent.email && adminEmails.includes(currentAgent.email.toLowerCase()));
 
-  const { readConvMap, deleteConversation } = useLiveSync();
+  const { readConvMap, deleteConversation, resetAll } = useLiveSync();
+  const [inboxResetting, setInboxResetting] = useState(false);
+
+  const handleResetInbox = async () => {
+    if (!confirm('Are you sure you want to reset all active chats to 0?')) return;
+    setInboxResetting(true);
+    try {
+      await resetAll();
+    } finally {
+      setInboxResetting(false);
+    }
+  };
 
   // ROLE-BASED VISIBILITY: Admin sees everything; Regular agents only see handoff requests & their claimed chats
   const visibleConversations = conversations.filter((conv) => {
@@ -223,6 +234,23 @@ export const LiveChatConsole: React.FC<LiveChatConsoleProps> = ({
       onSelectChat('');
     }
     await deleteConversation(id);
+  };
+
+  const [notifPerm, setNotifPerm] = useState<string>('default');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      setNotifPerm(Notification.permission);
+    }
+  }, []);
+
+  const handleEnableNotifs = async () => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      try {
+        const res = await Notification.requestPermission();
+        setNotifPerm(res);
+      } catch {}
+    }
   };
 
   // Manual selection only (no auto-select to preserve list browsing)
@@ -502,15 +530,15 @@ const sortTimelineMessages = <T extends { id?: string; seq?: number; created_at?
   }, [selectedConv, messages]);
 
   useEffect(() => {
-    // Only auto-scroll if user is near the bottom
-    if (!isUserScrolledUp.current) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Only auto-scroll internal chat container (never jump outer window or iframe)
+    if (!isUserScrolledUp.current && chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
   }, [displayMessages]);
 
   useEffect(() => {
-    if (liveTypingPreview && !isUserScrolledUp.current) {
-      typingPreviewEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (liveTypingPreview && !isUserScrolledUp.current && chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
   }, [liveTypingPreview]);
 
@@ -954,9 +982,38 @@ const sortTimelineMessages = <T extends { id?: string; seq?: number; created_at?
                 Inbox ({visibleConversations.length})
               </h3>
             </div>
-            <span className="text-[10px] text-brand-emerald font-bold">
-              {isAdmin ? 'Admin View (All Chats)' : 'Agent View'}
-            </span>
+            <div className="flex items-center space-x-2">
+              <span className="text-[10px] text-brand-emerald font-bold">
+                {isAdmin ? 'Admin View' : 'Agent View'}
+              </span>
+              {notifPerm !== 'granted' ? (
+                <button
+                  type="button"
+                  onClick={handleEnableNotifs}
+                  title="Enable desktop notifications for incoming visitor messages"
+                  className="px-2 py-0.5 rounded-lg bg-blue-500/15 hover:bg-blue-500/25 border border-blue-500/30 text-blue-400 text-[10px] font-bold transition-all flex items-center space-x-1"
+                >
+                  <Bell className="w-3 h-3" />
+                  <span>Alerts</span>
+                </button>
+              ) : (
+                <span title="Desktop alerts enabled" className="text-emerald-400 flex items-center" aria-label="Notifications active">
+                  <Bell className="w-3 h-3" />
+                </span>
+              )}
+              {isAdmin && (
+                <button
+                  type="button"
+                  onClick={handleResetInbox}
+                  disabled={inboxResetting}
+                  title="Reset all active chats to 0"
+                  className="px-2 py-0.5 rounded-lg bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-rose-400 text-[10px] font-bold transition-all flex items-center space-x-1"
+                >
+                  <RotateCcw className={`w-3 h-3 ${inboxResetting ? 'animate-spin' : ''}`} />
+                  <span>Reset 0</span>
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Tabs Grid: 4 tabs for Admin, 3 tabs for Regular Agent */}

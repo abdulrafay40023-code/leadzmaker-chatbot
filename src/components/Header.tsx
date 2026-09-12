@@ -1,8 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Volume2, VolumeX, Code2, LogOut, Bell } from 'lucide-react';
-import { playVisitorAlertSound, initAndUnlockAudio } from '@/lib/audio';
+import { Code2, LogOut, RotateCcw } from 'lucide-react';
 
 interface HeaderProps {
   currentAgent: {
@@ -11,19 +10,31 @@ interface HeaderProps {
     full_name: string;
     role: string;
   } | null;
-  soundEnabled: boolean;
-  onToggleSound: () => void;
+  soundEnabled?: boolean;
+  onToggleSound?: () => void;
   onOpenEmbedModal: () => void;
   onSignOut: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   currentAgent,
-  soundEnabled,
-  onToggleSound,
   onOpenEmbedModal,
   onSignOut,
 }) => {
+  const [resetting, setResetting] = React.useState(false);
+
+  const handleAdminReset = async () => {
+    if (!confirm('Are you sure you want to reset all chats and sessions to 0?')) return;
+    setResetting(true);
+    try {
+      await fetch('/api/admin/reset', { method: 'POST' });
+    } finally {
+      setResetting(false);
+    }
+  };
+
+  const isAdmin = currentAgent?.role === 'admin' || ['abdulrafay40023@gmail.com', 'support@leadzmaker.com'].includes(currentAgent?.email?.toLowerCase() || '');
+
   return (
     <header className="h-16 border-b border-dark-border bg-[#080d1a]/90 backdrop-blur-md px-6 flex items-center justify-between sticky top-0 z-40">
       <div className="flex items-center space-x-3">
@@ -36,35 +47,21 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       <div className="flex items-center space-x-3">
-        {/* Test Beep Sound Button */}
-        <button
-          onClick={async () => {
-            await initAndUnlockAudio();
-            playVisitorAlertSound();
-          }}
-          title="Test 4-Tone Beep Chime"
-          className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-lime-500/15 hover:bg-lime-500/25 border border-lime-500/30 text-lime-400 text-xs font-semibold transition-all shadow-sm"
-        >
-          <Bell className="w-3.5 h-3.5 animate-bounce" />
-          <span>Test Beep 🔊</span>
-        </button>
-
-        {/* Sound Toggle */}
-        <button
-          onClick={onToggleSound}
-          title={soundEnabled ? 'Sound Alerts Active' : 'Sound Alerts Muted'}
-          className={`flex items-center space-x-2 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all ${
-            soundEnabled
-              ? 'bg-brand-emerald/10 border-brand-emerald/30 text-brand-emerald shadow-sm'
-              : 'bg-dark-card border-dark-border text-dark-muted hover:text-white'
-          }`}
-        >
-          {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-          <span>{soundEnabled ? 'Alerts ON' : 'Muted'}</span>
-        </button>
+        {/* Reset to 0 Button (Admin Only) */}
+        {isAdmin && (
+          <button
+            onClick={handleAdminReset}
+            disabled={resetting}
+            title="Reset all active chats & sessions to 0"
+            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-rose-400 text-xs font-semibold transition-all shadow-sm"
+          >
+            <RotateCcw className={`w-3.5 h-3.5 ${resetting ? 'animate-spin' : ''}`} />
+            <span>Reset to 0</span>
+          </button>
+        )}
 
         {/* Get Widget Code (Admin Only) */}
-        {((currentAgent?.role === 'admin') || ['abdulrafay40023@gmail.com', 'support@leadzmaker.com'].includes(currentAgent?.email?.toLowerCase() || '')) && (
+        {isAdmin && (
           <button
             onClick={onOpenEmbedModal}
             className="flex items-center space-x-2 px-3.5 py-1.5 rounded-xl bg-dark-card hover:bg-dark-cardHover border border-dark-border text-white text-xs font-semibold transition-all"

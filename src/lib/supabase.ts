@@ -5,8 +5,9 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || process
 
 export const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
-    persistSession: false,
-    autoRefreshToken: false
+    persistSession: typeof window !== 'undefined',
+    autoRefreshToken: typeof window !== 'undefined',
+    storage: typeof window !== 'undefined' ? window.localStorage : undefined,
   },
   realtime: {
     params: {

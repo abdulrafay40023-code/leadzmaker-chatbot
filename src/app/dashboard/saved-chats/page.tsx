@@ -54,9 +54,6 @@ export default function AllChatsSavePage() {
         const data = await res.json();
         const list = Array.isArray(data.conversations) ? data.conversations : [];
         setConversations(list);
-        if (list.length > 0 && !selectedConvId) {
-          setSelectedConvId(list[0].id);
-        }
       }
     } catch (err) {
       console.error('Failed to fetch saved chats:', err);
@@ -235,8 +232,9 @@ export default function AllChatsSavePage() {
   const chat2Grouped = useMemo(() => groupConversationsByDate(chat2List), [chat2List]);
 
   const selectedConversation = useMemo(() => {
-    return conversations.find(c => c.id === selectedConvId) || filteredConversations[0] || null;
-  }, [conversations, selectedConvId, filteredConversations]);
+    if (!selectedConvId) return null;
+    return conversations.find(c => c.id === selectedConvId) || null;
+  }, [conversations, selectedConvId]);
 
   const exportTranscript = () => {
     if (!selectedConversation) return;
