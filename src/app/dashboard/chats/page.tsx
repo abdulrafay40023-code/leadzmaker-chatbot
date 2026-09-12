@@ -46,13 +46,18 @@ export default function ActiveChatsPage() {
       }
     } catch {}
 
-    const rawSession = localStorage.getItem('lm_agent_session');
-    if (rawSession) {
-      try {
+    // Always start on clean Active Chats page with no chat auto-opened
+    setSelectedChatId(null);
+    try {
+      localStorage.removeItem('lm_selected_chat_id');
+      const rawSession = localStorage.getItem('lm_agent_session');
+      if (rawSession) {
         const parsed = JSON.parse(rawSession);
-        setCurrentAgent(parsed);
-      } catch {}
-    }
+        if (parsed?.email) {
+          localStorage.removeItem(`lm_selected_chat_${parsed.email.toLowerCase().replace(/[^a-z0-9]/g, '_')}`);
+        }
+      }
+    } catch {}
   }, []);
 
   const handleClaimSuccess = async () => {

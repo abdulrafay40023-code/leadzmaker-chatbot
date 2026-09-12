@@ -71,17 +71,19 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         )}
 
-        {/* Direct Link to Chatbot */}
-        <a
-          href="https://leadzmaker-chatbot.vercel.app/"
-          target="_blank"
-          rel="noopener noreferrer"
-          title="Open LeadzMaker LiveChat Portal directly in a new tab"
-          className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-dark-card hover:bg-dark-cardHover border border-dark-border text-white text-xs font-semibold transition-all hover:border-brand-primary/50 group"
-        >
-          <ExternalLink className="w-3.5 h-3.5 text-brand-secondary group-hover:text-white transition-colors" />
-          <span>Direct Link</span>
-        </a>
+        {/* Direct Link to Chatbot (Admin Only) */}
+        {isAdmin && (
+          <a
+            href="https://leadzmaker-chatbot.vercel.app/"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Open LeadzMaker LiveChat Portal directly in a new tab"
+            className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-dark-card hover:bg-dark-cardHover border border-dark-border text-white text-xs font-semibold transition-all hover:border-brand-primary/50 group"
+          >
+            <ExternalLink className="w-3.5 h-3.5 text-brand-secondary group-hover:text-white transition-colors" />
+            <span>Direct Link</span>
+          </a>
+        )}
 
         {/* User Info */}
         {currentAgent && (

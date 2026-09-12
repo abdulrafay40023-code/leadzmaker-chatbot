@@ -120,7 +120,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const isAdmin = currentAgent?.role === 'admin' || (currentAgent?.email && adminEmails.includes(currentAgent.email.toLowerCase()));
 
   useEffect(() => {
-    if (!isAdmin) return;
+    if (!isAdmin || pathname === '/dashboard/admin') return;
 
     const fetchApprovals = async () => {
       try {

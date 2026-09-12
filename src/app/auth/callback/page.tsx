@@ -149,7 +149,7 @@ export default function AuthCallbackPage() {
       const data = await res.json();
       if (data.status === 'approved') {
         localStorage.setItem('lm_agent_session', JSON.stringify(data.agent));
-        router.push('/dashboard');
+        router.push('/dashboard/chats');
       }
     } catch (err) {
       console.error(err);

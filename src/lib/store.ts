@@ -736,20 +736,12 @@ class GranularStore {
 
     try {
       const payload = JSON.stringify(agent);
-      // Canonical file: agents/${sanitizeKey(cleanEmail)}.json
+      // Canonical file is strictly agents/${sanitizeKey(cleanEmail)}.json
       const keyEmail = `agents/${sanitizeKey(cleanEmail)}.json`;
       await supabaseAdmin.storage.from(BUCKET).upload(keyEmail, payload, {
         upsert: true,
         contentType: 'application/json'
       });
-      // Also write agent.id key if different
-      if (agent.id && sanitizeKey(agent.id) !== sanitizeKey(cleanEmail)) {
-        const keyId = `agents/${sanitizeKey(agent.id)}.json`;
-        await supabaseAdmin.storage.from(BUCKET).upload(keyId, payload, {
-          upsert: true,
-          contentType: 'application/json'
-        });
-      }
     } catch (e) {
       console.error('Error saving agent:', e);
     }

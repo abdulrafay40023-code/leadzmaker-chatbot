@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Shield, Check, X, Mail, Phone, Users, Code2, UserCheck, Activity, Laptop, Trash2 } from 'lucide-react';
 import { PendingAgent } from '@/components/ApprovalBanner';
@@ -33,6 +33,9 @@ export default function AdminPage() {
   const [onlineAgents, setOnlineAgents] = useState<StoreAgent[]>([]);
   const [copied, setCopied] = useState(false);
 
+  // Persistent reference to suppress laggy/stale polling overwriting optimistic approve/reject actions
+  const recentlyActionedRef = useRef<Map<string, { status: 'approved' | 'removed'; agent?: PendingAgent; time: number }>>(new Map());
+
   useEffect(() => {
     const rawSession = localStorage.getItem('lm_agent_session');
     if (!rawSession) {
@@ -58,9 +61,58 @@ export default function AdminPage() {
       const res = await fetch('/api/agent/approvals');
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data.pendingAgents)) setPendingAgents(data.pendingAgents);
-        if (Array.isArray(data.approvedAgents)) setApprovedAgents(data.approvedAgents);
-        if (Array.isArray(data.onlineAgents)) setOnlineAgents(data.onlineAgents);
+        const now = Date.now();
+
+        // Expire actioned entries after 12 seconds
+        for (const [key, val] of recentlyActionedRef.current.entries()) {
+          if (now - val.time > 12000) recentlyActionedRef.current.delete(key);
+        }
+
+        if (Array.isArray(data.pendingAgents)) {
+          // Never re-add an agent that the admin just approved or removed!
+          const filteredPending = data.pendingAgents.filter(a => {
+            const act = recentlyActionedRef.current.get(a.id) || recentlyActionedRef.current.get((a.email || '').toLowerCase());
+            return !act;
+          });
+          setPendingAgents(filteredPending);
+        }
+
+        if (Array.isArray(data.approvedAgents)) {
+          // Filter out any agent that admin just removed
+          let cleanApproved = data.approvedAgents.filter(a => {
+            const act = recentlyActionedRef.current.get(a.id) || recentlyActionedRef.current.get((a.email || '').toLowerCase());
+            return act?.status !== 'removed';
+          });
+
+          // Ensure any agent that admin just approved is included even if server is slightly behind
+          for (const [key, val] of recentlyActionedRef.current.entries()) {
+            if (val.status === 'approved' && val.agent) {
+              const email = val.agent.email.toLowerCase();
+              if (!cleanApproved.some(a => a.id === key || a.email.toLowerCase() === email)) {
+                cleanApproved.push({
+                  id: val.agent.id,
+                  email: val.agent.email,
+                  full_name: val.agent.full_name,
+                  phone: val.agent.phone,
+                  role: 'agent',
+                  status: 'approved',
+                  is_online: true,
+                  last_seen_at: new Date().toISOString(),
+                  created_at: val.agent.created_at || new Date().toISOString()
+                });
+              }
+            }
+          }
+
+          setApprovedAgents(cleanApproved);
+        }
+
+        if (Array.isArray(data.onlineAgents)) {
+          setOnlineAgents(data.onlineAgents.filter(a => {
+            const act = recentlyActionedRef.current.get(a.id) || recentlyActionedRef.current.get((a.email || '').toLowerCase());
+            return act?.status !== 'removed';
+          }));
+        }
       }
     } catch (err) {
       console.error('Fetch agents error:', err);
@@ -69,7 +121,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     fetchAgents();
-    const interval = setInterval(fetchAgents, 3500);
+    const interval = setInterval(fetchAgents, 4000);
 
     // Instant Realtime updates when agents register, are approved, or removed
     const channel = supabase.channel('leadzmaker-live-stream', {
@@ -93,6 +145,13 @@ export default function AdminPage() {
   const handleApprove = async (agentId: string) => {
     // 1. Instant Optimistic UI Update: move from pending to approved
     const target = pendingAgents.find(a => a.id === agentId);
+    
+    // Track locally so background polls never resurrect them as pending
+    recentlyActionedRef.current.set(agentId, { status: 'approved', agent: target, time: Date.now() });
+    if (target?.email) {
+      recentlyActionedRef.current.set(target.email.toLowerCase(), { status: 'approved', agent: target, time: Date.now() });
+    }
+
     setPendingAgents(prev => prev.filter(a => a.id !== agentId));
     if (target) {
       setApprovedAgents(prev => {
@@ -108,32 +167,36 @@ export default function AdminPage() {
     }
 
     try {
-      const res = await fetch('/api/agent/approvals', {
+      await fetch('/api/agent/approvals', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ agentId, action: 'approve' })
       });
-      if (!res.ok) fetchAgents();
     } catch (err) {
       console.error(err);
-      fetchAgents();
     }
   };
 
   const handleReject = async (agentId: string) => {
+    const target = pendingAgents.find(a => a.id === agentId);
+
+    // Track locally so background polls never resurrect them
+    recentlyActionedRef.current.set(agentId, { status: 'removed', time: Date.now() });
+    if (target?.email) {
+      recentlyActionedRef.current.set(target.email.toLowerCase(), { status: 'removed', time: Date.now() });
+    }
+
     // 1. Instant Optimistic UI Update: remove from pending list
     setPendingAgents(prev => prev.filter(a => a.id !== agentId));
 
     try {
-      const res = await fetch('/api/agent/approvals', {
+      await fetch('/api/agent/approvals', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ agentId, action: 'reject' })
       });
-      if (!res.ok) fetchAgents();
     } catch (err) {
       console.error(err);
-      fetchAgents();
     }
   };
 
@@ -143,21 +206,21 @@ export default function AdminPage() {
     );
     if (!confirmed) return;
 
+    recentlyActionedRef.current.set(agentId, { status: 'removed', time: Date.now() });
+
     // 1. Instant Optimistic UI Update: remove from approved and online lists
     setApprovedAgents(prev => prev.filter(a => a.id !== agentId));
     setOnlineAgents(prev => prev.filter(a => a.id !== agentId));
     setRemovingAgentId(agentId);
 
     try {
-      const res = await fetch('/api/agent/approvals', {
+      await fetch('/api/agent/approvals', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ agentId, action: 'remove' })
       });
-      if (!res.ok) fetchAgents();
     } catch (err) {
       console.error(err);
-      fetchAgents();
     } finally {
       setRemovingAgentId(null);
     }
