@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Shield, Check, X, Mail, Phone, Users, Code2, UserCheck, Activity, Laptop, Trash2 } from 'lucide-react';
 import { PendingAgent } from '@/components/ApprovalBanner';
 import { AgentAvatar } from '@/components/AgentAvatar';
+import { supabase } from '@/lib/supabase';
 
 interface StoreAgent {
   id: string;
@@ -57,46 +58,82 @@ export default function AdminPage() {
       const res = await fetch('/api/agent/approvals');
       if (res.ok) {
         const data = await res.json();
-        setPendingAgents(data.pendingAgents || []);
-        setApprovedAgents(data.approvedAgents || []);
-        setOnlineAgents(data.onlineAgents || []);
+        if (Array.isArray(data.pendingAgents)) setPendingAgents(data.pendingAgents);
+        if (Array.isArray(data.approvedAgents)) setApprovedAgents(data.approvedAgents);
+        if (Array.isArray(data.onlineAgents)) setOnlineAgents(data.onlineAgents);
       }
     } catch (err) {
-      console.error(err);
+      console.error('Fetch agents error:', err);
     }
   };
 
   useEffect(() => {
     fetchAgents();
-    const interval = setInterval(fetchAgents, 2000);
-    return () => clearInterval(interval);
+    const interval = setInterval(fetchAgents, 3500);
+
+    // Instant Realtime updates when agents register, are approved, or removed
+    const channel = supabase.channel('leadzmaker-live-stream', {
+      config: { broadcast: { self: true } }
+    });
+
+    channel
+      .on('broadcast', { event: 'agent_pending_approval' }, () => fetchAgents())
+      .on('broadcast', { event: 'agent_approved' }, () => fetchAgents())
+      .on('broadcast', { event: 'agent_removed' }, () => fetchAgents())
+      .subscribe();
+
+    return () => {
+      clearInterval(interval);
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const [removingAgentId, setRemovingAgentId] = useState<string | null>(null);
 
   const handleApprove = async (agentId: string) => {
+    // 1. Instant Optimistic UI Update: move from pending to approved
+    const target = pendingAgents.find(a => a.id === agentId);
+    setPendingAgents(prev => prev.filter(a => a.id !== agentId));
+    if (target) {
+      setApprovedAgents(prev => {
+        if (prev.some(a => a.id === agentId || a.email.toLowerCase() === target.email.toLowerCase())) return prev;
+        return [...prev, {
+          ...target,
+          role: 'agent',
+          status: 'approved',
+          is_online: true,
+          last_seen_at: new Date().toISOString()
+        }];
+      });
+    }
+
     try {
       const res = await fetch('/api/agent/approvals', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ agentId, action: 'approve' })
       });
-      if (res.ok) fetchAgents();
+      if (!res.ok) fetchAgents();
     } catch (err) {
       console.error(err);
+      fetchAgents();
     }
   };
 
   const handleReject = async (agentId: string) => {
+    // 1. Instant Optimistic UI Update: remove from pending list
+    setPendingAgents(prev => prev.filter(a => a.id !== agentId));
+
     try {
       const res = await fetch('/api/agent/approvals', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ agentId, action: 'reject' })
       });
-      if (res.ok) fetchAgents();
+      if (!res.ok) fetchAgents();
     } catch (err) {
       console.error(err);
+      fetchAgents();
     }
   };
 
@@ -106,18 +143,21 @@ export default function AdminPage() {
     );
     if (!confirmed) return;
 
+    // 1. Instant Optimistic UI Update: remove from approved and online lists
+    setApprovedAgents(prev => prev.filter(a => a.id !== agentId));
+    setOnlineAgents(prev => prev.filter(a => a.id !== agentId));
     setRemovingAgentId(agentId);
+
     try {
       const res = await fetch('/api/agent/approvals', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ agentId, action: 'remove' })
       });
-      if (res.ok) {
-        fetchAgents();
-      }
+      if (!res.ok) fetchAgents();
     } catch (err) {
       console.error(err);
+      fetchAgents();
     } finally {
       setRemovingAgentId(null);
     }

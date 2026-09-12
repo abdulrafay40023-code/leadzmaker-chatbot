@@ -25,9 +25,18 @@ export async function POST(req: NextRequest) {
   try {
     const { agentId, action } = await req.json();
 
+    const cleanId = (agentId || '').toLowerCase().trim();
     const allAgents = await granularStore.getAllAgents();
-    const targetAgent = allAgents.find(a => a.id === agentId || a.email.toLowerCase() === (agentId || '').toLowerCase());
+    const targetAgent = allAgents.find(a => a.id.toLowerCase() === cleanId || a.email.toLowerCase() === cleanId);
     if (!targetAgent) {
+      if (action === 'remove' || action === 'reject') {
+        await granularStore.deleteAgent(cleanId);
+        broadcastRealtimeEvent('agent_removed', {
+          agentId: cleanId,
+          agentEmail: cleanId
+        }).catch(() => {});
+        return NextResponse.json({ success: true, message: 'Agent removed' });
+      }
       return NextResponse.json({ error: 'Agent not found' }, { status: 404 });
     }
 
@@ -51,13 +60,15 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === 'remove' || action === 'reject') {
-      targetAgent.status = 'rejected';
-      targetAgent.is_online = false;
-      await granularStore.saveAgent(targetAgent);
+      const agentEmail = targetAgent.email;
+      const agentIdVal = targetAgent.id;
+
+      await granularStore.deleteAgent(agentEmail);
+      await granularStore.deleteAgent(agentIdVal);
 
       broadcastRealtimeEvent('agent_removed', {
-        agentId: targetAgent.id,
-        agentEmail: targetAgent.email
+        agentId: agentIdVal,
+        agentEmail: agentEmail
       }).catch(() => {});
 
       return NextResponse.json({

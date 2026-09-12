@@ -176,6 +176,14 @@ export default function AuthCallbackPage() {
           router.push('/dashboard/chats');
         }
       })
+      .on('broadcast', { event: 'agent_removed' }, (payload: unknown) => {
+        const raw = (payload as Record<string, unknown>)?.payload || payload;
+        const removedEmail = (raw as Record<string, unknown>)?.agentEmail as string;
+        if (removedEmail && removedEmail.toLowerCase() === agentData.email.toLowerCase()) {
+          localStorage.removeItem('lm_agent_session');
+          router.push('/login');
+        }
+      })
       .subscribe();
 
     const interval = setInterval(async () => {
@@ -190,6 +198,9 @@ export default function AuthCallbackPage() {
           if (data.status === 'approved') {
             localStorage.setItem('lm_agent_session', JSON.stringify(data.agent));
             router.push('/dashboard/chats');
+          } else if (data.status === 'rejected' || data.status === 'needs_profile') {
+            localStorage.removeItem('lm_agent_session');
+            router.push('/login');
           }
         }
       } catch {}

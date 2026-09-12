@@ -216,6 +216,7 @@ class GranularStore {
   readonly todayIps = new Map<string, Set<string>>();
   private totalViews = 0;
   private storageLoaded = false;
+  private agentsLastSync = 0;
 
   constructor() {
     const adminAbdulRafay: StoreAgent = {
@@ -633,12 +634,32 @@ class GranularStore {
       created_at: new Date().toISOString()
     };
 
-    const agentMap = new Map<string, StoreAgent>();
-    agentMap.set(adminAbdulRafay.email.toLowerCase(), adminAbdulRafay);
+    // Ensure Master Admin is always in memory cache
+    this.agents.set(adminAbdulRafay.email.toLowerCase(), adminAbdulRafay);
+
+    // Fast-path: return from memory if synced recently (< 3 seconds) and we have data
+    const now = Date.now();
+    if (now - this.agentsLastSync < 3000 && this.agents.size > 0) {
+      return Array.from(this.agents.values());
+    }
 
     try {
       const { data: aFiles } = await supabaseAdmin.storage.from(BUCKET).list('agents');
-      if (aFiles && aFiles.length > 0) {
+      if (aFiles && Array.isArray(aFiles)) {
+        // Collect current storage keys (without .json)
+        const storageKeys = new Set(aFiles.map(f => f.name.replace(/\.json$/i, '').toLowerCase()));
+
+        // Prune any agents in memory that were removed from storage (except master admins)
+        for (const [em, a] of Array.from(this.agents.entries())) {
+          if (em === 'abdulrafay40023@gmail.com' || em === 'support@leadzmaker.com') continue;
+          const sanitizedEmail = sanitizeKey(em).toLowerCase();
+          const sanitizedId = sanitizeKey(a.id || '').toLowerCase();
+          if (!storageKeys.has(sanitizedEmail) && !storageKeys.has(sanitizedId)) {
+            this.agents.delete(em);
+          }
+        }
+
+        // Fetch each agent file
         await Promise.all(aFiles.map(async (f) => {
           try {
             const { data } = await supabaseAdmin.storage.from(BUCKET).download(`agents/${f.name}`);
@@ -656,19 +677,24 @@ class GranularStore {
                   a.role = 'agent'; // Strictly agent, never admin!
                 }
 
-                // If already in map, keep latest or approved status
-                const existing = agentMap.get(cleanEmail);
-                if (!existing || a.status === 'approved' || new Date(a.created_at || 0) > new Date(existing.created_at || 0)) {
-                  agentMap.set(cleanEmail, a);
+                const existing = this.agents.get(cleanEmail);
+                // Keep the most authoritative status (approved wins, or latest update)
+                if (!existing || a.status === 'approved' || new Date(a.created_at || 0) >= new Date(existing.created_at || 0)) {
+                  this.agents.set(cleanEmail, a);
                 }
               }
             }
           } catch {}
         }));
-      }
-    } catch {}
 
-    return Array.from(agentMap.values());
+        this.agentsLastSync = Date.now();
+      }
+    } catch (e) {
+      console.error('Error syncing agents from storage:', e);
+      // Fallback: keep existing memory cache without blanking out!
+    }
+
+    return Array.from(this.agents.values());
   }
 
   async getAgent(agentId: string): Promise<StoreAgent | null> {
@@ -686,32 +712,89 @@ class GranularStore {
         created_at: new Date().toISOString()
       };
     }
+
+    // Check memory cache first
+    const cached = this.agents.get(clean);
+    if (cached) return cached;
+
     const all = await this.getAllAgents();
-    return all.find(a => a.id === agentId || a.email.toLowerCase() === clean) || null;
+    return all.find(a => a.id.toLowerCase() === clean || a.email.toLowerCase() === clean) || null;
   }
 
   async saveAgent(agent: StoreAgent): Promise<void> {
-    if (ADMIN_EMAILS.includes(agent.email.toLowerCase())) {
+    const cleanEmail = (agent.email || '').toLowerCase().trim();
+    if (!cleanEmail) return;
+
+    if (ADMIN_EMAILS.includes(cleanEmail)) {
       agent.role = 'admin';
       agent.status = 'approved';
     }
-    this.agents.set(agent.email.toLowerCase(), agent);
+
+    // Immediately cache in memory (0ms)
+    this.agents.set(cleanEmail, agent);
+    this.agentsLastSync = Date.now();
+
     try {
       const payload = JSON.stringify(agent);
-      // Save by agent ID
-      const keyId = `agents/${sanitizeKey(agent.id)}.json`;
-      await supabaseAdmin.storage.from(BUCKET).upload(keyId, payload, {
-        upsert: true,
-        contentType: 'application/json'
-      });
-      // Also save by clean email key for direct lookup
-      const keyEmail = `agents/${sanitizeKey(agent.email.toLowerCase())}.json`;
+      // Canonical file: agents/${sanitizeKey(cleanEmail)}.json
+      const keyEmail = `agents/${sanitizeKey(cleanEmail)}.json`;
       await supabaseAdmin.storage.from(BUCKET).upload(keyEmail, payload, {
         upsert: true,
         contentType: 'application/json'
       });
+      // Also write agent.id key if different
+      if (agent.id && sanitizeKey(agent.id) !== sanitizeKey(cleanEmail)) {
+        const keyId = `agents/${sanitizeKey(agent.id)}.json`;
+        await supabaseAdmin.storage.from(BUCKET).upload(keyId, payload, {
+          upsert: true,
+          contentType: 'application/json'
+        });
+      }
     } catch (e) {
       console.error('Error saving agent:', e);
+    }
+  }
+
+  async deleteAgent(agentIdOrEmail: string): Promise<boolean> {
+    const clean = (agentIdOrEmail || '').toLowerCase().trim();
+    if (!clean) return false;
+
+    // Never delete master admin
+    if (clean === 'abdulrafay40023@gmail.com' || clean === 'agent_abdulrafay_admin' || clean === 'support@leadzmaker.com') {
+      return false;
+    }
+
+    let targetEmail = '';
+    let targetId = '';
+
+    for (const [em, a] of this.agents.entries()) {
+      if (em === clean || a.id.toLowerCase() === clean || a.email.toLowerCase() === clean) {
+        targetEmail = a.email.toLowerCase();
+        targetId = a.id;
+        break;
+      }
+    }
+
+    if (targetEmail) this.agents.delete(targetEmail);
+    this.agents.delete(clean);
+    this.agentsLastSync = Date.now();
+
+    try {
+      const keys = new Set<string>();
+      if (targetEmail) {
+        keys.add(`agents/${sanitizeKey(targetEmail)}.json`);
+      }
+      if (targetId) {
+        keys.add(`agents/${sanitizeKey(targetId)}.json`);
+      }
+      keys.add(`agents/${sanitizeKey(clean)}.json`);
+
+      const pathList = Array.from(keys);
+      await supabaseAdmin.storage.from(BUCKET).remove(pathList);
+      return true;
+    } catch (e) {
+      console.error('Error deleting agent from storage:', e);
+      return false;
     }
   }
 

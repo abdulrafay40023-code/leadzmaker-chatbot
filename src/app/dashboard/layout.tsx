@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { Sidebar } from '@/components/Sidebar';
 import { Header } from '@/components/Header';
 import { EmbedCodeModal } from '@/components/EmbedCodeModal';
@@ -11,6 +11,7 @@ import { LiveSyncProvider, useLiveSync } from '@/context/LiveSyncContext';
 
 function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [currentAgent, setCurrentAgent] = useState<{
     id: string;
     email: string;
@@ -148,13 +149,15 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   }, [isAdmin]);
 
   const handleApproveAgent = async (agentId: string) => {
+    setPendingAgents(prev => prev.filter(a => a.id !== agentId));
+    setPendingAgentsCount(prev => Math.max(0, prev - 1));
     try {
       const res = await fetch('/api/agent/approvals', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ agentId, action: 'approve' })
       });
-      if (res.ok) {
+      if (!res.ok) {
         const appRes = await fetch('/api/agent/approvals');
         if (appRes.ok) {
           const appData = await appRes.json();
@@ -169,13 +172,15 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   };
 
   const handleRejectAgent = async (agentId: string) => {
+    setPendingAgents(prev => prev.filter(a => a.id !== agentId));
+    setPendingAgentsCount(prev => Math.max(0, prev - 1));
     try {
       const res = await fetch('/api/agent/approvals', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ agentId, action: 'reject' })
       });
-      if (res.ok) {
+      if (!res.ok) {
         const appRes = await fetch('/api/agent/approvals');
         if (appRes.ok) {
           const appData = await appRes.json();
@@ -217,7 +222,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         />
 
         <main className="flex-1 overflow-y-auto p-6">
-          {isAdmin && pendingAgents.length > 0 && (
+          {isAdmin && pendingAgents.length > 0 && pathname !== '/dashboard/admin' && (
             <ApprovalBanner
               pendingAgents={pendingAgents}
               onApprove={handleApproveAgent}
