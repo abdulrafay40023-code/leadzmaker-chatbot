@@ -972,7 +972,7 @@ const sortTimelineMessages = <T extends { id?: string; seq?: number; created_at?
 
   return (
     <>
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 h-[650px] bg-dark-card border border-dark-border rounded-2xl overflow-hidden shadow-2xl">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 lg:gap-4 flex-1 min-h-[500px] h-[calc(100vh-165px)] lg:h-[calc(100vh-170px)] bg-dark-card border border-dark-border rounded-2xl overflow-hidden shadow-2xl">
         {/* Column 1: Conversations Inbox List */}
         <div className="lg:col-span-4 border-r border-dark-border flex flex-col bg-[#0b101d]">
           <div className="p-3.5 border-b border-dark-border flex items-center justify-between bg-[#0e1526]">

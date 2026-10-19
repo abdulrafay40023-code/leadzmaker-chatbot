@@ -75,7 +75,7 @@ export default function ActiveChatsPage() {
   const activeCount = leadzmakerConversations.length;
 
   return (
-    <div className="h-full flex flex-col space-y-4">
+    <div className="h-full flex flex-col space-y-3">
       {/* Clean Single-Website Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
         <div>
@@ -98,7 +98,7 @@ export default function ActiveChatsPage() {
       </div>
 
       {/* LiveChatConsole cleanly at the top */}
-      <div className="flex-1 min-h-0">
+      <div className="flex-1 min-h-0 flex flex-col">
         <LiveChatConsole
           currentAgent={currentAgent || { id: 'agent_abdulrafay_admin', full_name: 'Abdul Rafay', email: 'abdulrafay40023@gmail.com', role: 'admin' }}
           selectedChatId={selectedChatId}

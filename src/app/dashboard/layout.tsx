@@ -221,7 +221,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           onSignOut={handleSignOut}
         />
 
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-5 flex flex-col min-h-0">
           {isAdmin && pendingAgents.length > 0 && pathname !== '/dashboard/admin' && (
             <ApprovalBanner
               pendingAgents={pendingAgents}
