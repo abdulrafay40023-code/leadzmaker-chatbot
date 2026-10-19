@@ -22,6 +22,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   } | null>(null);
 
   const [isEmbedModalOpen, setIsEmbedModalOpen] = useState(false);
+  const [isEmbedded, setIsEmbedded] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const [pendingAgents, setPendingAgents] = useState<PendingAgent[]>([]);
   const [pendingAgentsCount, setPendingAgentsCount] = useState(0);
   const prevPendingCountRef = React.useRef<number | null>(null);
@@ -29,6 +31,17 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const { liveCount, chatCount, unreadConversationsCount, conversations, soundEnabled, toggleSound, unreadCount, resetUnreadCount } = useLiveSync();
 
   useEffect(() => {
+    // Detect iframe or embed query parameter
+    if (typeof window !== 'undefined') {
+      try {
+        const isEmbed = new URLSearchParams(window.location.search).get('embed') === '1' || window.self !== window.top;
+        if (isEmbed) {
+          setIsEmbedded(true);
+          setIsCollapsed(true);
+        }
+      } catch {}
+    }
+
     // 1. Auto Single Sign-On (SSO) when embedded inside CRM
     if (typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search);
@@ -203,25 +216,28 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   if (!currentAgent) return null;
 
   return (
-    <div className="flex h-screen bg-[#070b14] text-dark-text overflow-hidden">
+    <div className="flex h-screen h-[100dvh] bg-[#070b14] text-dark-text overflow-hidden">
       <Sidebar
         liveCount={liveCount}
         chatCount={unreadConversationsCount}
         pendingAgentsCount={pendingAgentsCount}
         isAdmin={isAdmin}
         unreadCount={isAdmin ? unreadCount : 0}
+        collapsed={isCollapsed}
       />
 
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <Header
-          currentAgent={currentAgent}
-          soundEnabled={soundEnabled}
-          onToggleSound={toggleSound}
-          onOpenEmbedModal={() => setIsEmbedModalOpen(true)}
-          onSignOut={handleSignOut}
-        />
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden h-full">
+        {!isEmbedded && (
+          <Header
+            currentAgent={currentAgent}
+            soundEnabled={soundEnabled}
+            onToggleSound={toggleSound}
+            onOpenEmbedModal={() => setIsEmbedModalOpen(true)}
+            onSignOut={handleSignOut}
+          />
+        )}
 
-        <main className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-5 flex flex-col min-h-0">
+        <main className={`flex-1 min-h-0 flex flex-col overflow-hidden ${isEmbedded ? 'p-1.5 sm:p-2' : 'p-3 sm:p-4 lg:p-5'}`}>
           {isAdmin && pendingAgents.length > 0 && pathname !== '/dashboard/admin' && (
             <ApprovalBanner
               pendingAgents={pendingAgents}

@@ -75,30 +75,25 @@ export default function ActiveChatsPage() {
   const activeCount = leadzmakerConversations.length;
 
   return (
-    <div className="h-full flex flex-col space-y-3">
+    <div className="h-full flex flex-col space-y-2 min-h-0">
       {/* Clean Single-Website Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
-        <div>
-          <div className="flex items-center space-x-2.5">
-            <h1 className="text-xl font-bold text-white tracking-tight">Active Live Chats</h1>
-            <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-lime-500/15 text-lime-400 border border-lime-500/30 flex items-center space-x-1.5 shadow-sm">
-              <span className="w-1.5 h-1.5 rounded-full bg-lime-400 animate-ping" />
-              <span>leadzmaker.com</span>
-            </span>
-          </div>
-          <p className="text-xs text-dark-muted mt-1">
-            Incoming visitor conversations & real-time human support operator console
-          </p>
+      <div className="flex items-center justify-between gap-2 shrink-0 py-1">
+        <div className="flex items-center space-x-2">
+          <h1 className="text-base sm:text-lg font-bold text-white tracking-tight">Active Live Chats</h1>
+          <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-lime-500/15 text-lime-400 border border-lime-500/30 flex items-center space-x-1 shadow-sm">
+            <span className="w-1.5 h-1.5 rounded-full bg-lime-400 animate-ping" />
+            <span>leadzmaker.com</span>
+          </span>
         </div>
 
-        <div className="flex items-center space-x-2 text-xs text-dark-muted bg-dark-card border border-dark-border px-3.5 py-1.5 rounded-xl">
-          <MessageSquare className="w-4 h-4 text-lime-400" />
-          <span>Active Sessions: <strong className="text-white font-bold ml-1">{activeCount}</strong></span>
+        <div className="flex items-center space-x-1.5 text-xs text-dark-muted bg-dark-card border border-dark-border px-2.5 py-1 rounded-lg">
+          <MessageSquare className="w-3.5 h-3.5 text-lime-400" />
+          <span>Active: <strong className="text-white font-bold ml-0.5">{activeCount}</strong></span>
         </div>
       </div>
 
-      {/* LiveChatConsole cleanly at the top */}
-      <div className="flex-1 min-h-0 flex flex-col">
+      {/* LiveChatConsole cleanly filling 100% of remaining space */}
+      <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
         <LiveChatConsole
           currentAgent={currentAgent || { id: 'agent_abdulrafay_admin', full_name: 'Abdul Rafay', email: 'abdulrafay40023@gmail.com', role: 'admin' }}
           selectedChatId={selectedChatId}

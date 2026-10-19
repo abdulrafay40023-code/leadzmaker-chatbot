@@ -972,9 +972,9 @@ const sortTimelineMessages = <T extends { id?: string; seq?: number; created_at?
 
   return (
     <>
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 lg:gap-4 flex-1 min-h-[500px] h-[calc(100vh-165px)] lg:h-[calc(100vh-170px)] bg-dark-card border border-dark-border rounded-2xl overflow-hidden shadow-2xl">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 lg:gap-3 flex-1 min-h-0 h-full bg-dark-card border border-dark-border rounded-xl lg:rounded-2xl overflow-hidden shadow-2xl">
         {/* Column 1: Conversations Inbox List */}
-        <div className="lg:col-span-4 border-r border-dark-border flex flex-col bg-[#0b101d]">
+        <div className="lg:col-span-4 border-r border-dark-border flex flex-col bg-[#0b101d] h-full min-h-0 overflow-hidden">
           <div className="p-3.5 border-b border-dark-border flex items-center justify-between bg-[#0e1526]">
             <div className="flex items-center space-x-2">
               <MessageSquare className="w-4 h-4 text-brand-primary" />
@@ -1225,7 +1225,7 @@ const sortTimelineMessages = <T extends { id?: string; seq?: number; created_at?
                               ? `Assigned to ${selectedConv.assigned_agent_name}`
                               : isAiAutomated
                               ? `AI handling via ${selectedSiteConfig.shortName} dedicated engine`
-                              : 'Customer requested human assistance — claim to take over'}
+                              : 'Customer requested human assistance: claim to take over'}
                           </span>
                           {selectedSiteConfig.domain && (
                             <>
@@ -1419,7 +1419,7 @@ const sortTimelineMessages = <T extends { id?: string; seq?: number; created_at?
                   )}
 
                   {/* Reply Form */}
-                  <form onSubmit={handleSendMessage} className="p-3 border-t border-dark-border bg-dark-surface/60 space-y-2">
+                  <form onSubmit={handleSendMessage} className="p-2 sm:p-2.5 border-t border-dark-border bg-dark-surface/80 space-y-1.5 shrink-0">
                     <div className="flex items-center justify-between text-[11px]">
                       <button
                         type="button"
