@@ -469,10 +469,11 @@ export const WidgetChat: React.FC<WidgetChatProps> = ({
     }
   }, [agentTypingText]);
 
-  // Fast 2.5s fallback poll while chat is open to guarantee instant sync
+  // Smart fallback poll while chat is open (WebSockets handle instant real-time messages)
   useEffect(() => {
     if (!isOpen || !conversationId) return;
-    const interval = setInterval(async () => {
+    let lastPoll = Date.now();
+    const pollChat = async () => {
       try {
         const res = await fetch(`/api/chat/message?conversationId=${encodeURIComponent(conversationId)}&t=${Date.now()}`, { cache: 'no-store' });
         if (res.ok) {
@@ -486,7 +487,16 @@ export const WidgetChat: React.FC<WidgetChatProps> = ({
           }
         }
       } catch {}
-    }, 2500);
+    };
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const hidden = typeof document !== 'undefined' && document.hidden;
+      const delay = hidden ? 20000 : 6000;
+      if (now - lastPoll >= delay) {
+        lastPoll = now;
+        pollChat();
+      }
+    }, 3000);
     return () => clearInterval(interval);
   }, [isOpen, conversationId]);
 

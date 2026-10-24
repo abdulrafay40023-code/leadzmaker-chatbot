@@ -111,8 +111,11 @@
     } catch (e) {}
   }
 
-  // 5-Second Active Heartbeat Ping
-  setInterval(sendPing, 5000);
+  // 12-Second Active Heartbeat Ping (well within 30s server timeout, saves 60% serverless invocations)
+  setInterval(function () {
+    if (typeof document !== 'undefined' && document.hidden) return;
+    sendPing();
+  }, 12000);
 
   // Immediate ping when visitor switches tabs or focuses the window
   if (typeof document.addEventListener !== 'undefined') {

@@ -825,8 +825,17 @@ export const LiveSyncProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     channelRef.current = channel;
 
-    // 2-second rapid reconciliation poll
-    const interval = setInterval(refreshSync, 2000);
+    // Smart reconciliation poll (6s when active, 20s when tab is in background; WebSockets handle 0ms real-time events)
+    let lastSyncPoll = Date.now();
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const hidden = typeof document !== 'undefined' && document.hidden;
+      const delay = hidden ? 20000 : 6000;
+      if (now - lastSyncPoll >= delay) {
+        lastSyncPoll = now;
+        refreshSync();
+      }
+    }, 2000);
 
     return () => {
       channelRef.current = null;

@@ -121,7 +121,14 @@ export default function AdminPage() {
 
   useEffect(() => {
     fetchAgents();
-    const interval = setInterval(fetchAgents, 4000);
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      fetchAgents();
+    }, 10000);
+    const onVisAgents = () => {
+      if (typeof document !== 'undefined' && !document.hidden) fetchAgents();
+    };
+    document.addEventListener('visibilitychange', onVisAgents);
 
     // Instant Realtime updates when agents register, are approved, or removed
     const channel = supabase.channel('leadzmaker-live-stream', {
@@ -136,6 +143,7 @@ export default function AdminPage() {
 
     return () => {
       clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisAgents);
       supabase.removeChannel(channel);
     };
   }, []);

@@ -461,7 +461,16 @@ const sortTimelineMessages = <T extends { id?: string; seq?: number; created_at?
     };
 
     fetchMsgs();
-    const interval = setInterval(fetchMsgs, 1500);
+    let lastMsgPoll = Date.now();
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const hidden = typeof document !== 'undefined' && document.hidden;
+      const delay = hidden ? 20000 : 5000;
+      if (now - lastMsgPoll >= delay) {
+        lastMsgPoll = now;
+        fetchMsgs();
+      }
+    }, 2500);
 
     return () => {
       clearInterval(interval);

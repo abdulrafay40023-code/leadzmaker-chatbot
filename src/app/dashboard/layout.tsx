@@ -104,7 +104,14 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       };
 
       verifyAndPing();
-      const pingTimer = setInterval(verifyAndPing, 10000);
+      const pingTimer = setInterval(() => {
+        if (typeof document !== 'undefined' && document.hidden) return;
+        verifyAndPing();
+      }, 25000);
+      const onVisPing = () => {
+        if (typeof document !== 'undefined' && !document.hidden) verifyAndPing();
+      };
+      document.addEventListener('visibilitychange', onVisPing);
 
       // Realtime listener: if admin removes this agent, immediately evict
       const channel = supabase.channel('leadzmaker-agent-auth-monitor', {
@@ -121,6 +128,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
       return () => {
         clearInterval(pingTimer);
+        document.removeEventListener('visibilitychange', onVisPing);
         supabase.removeChannel(channel);
       };
     } catch {
@@ -157,8 +165,27 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       } catch {}
     };
     fetchApprovals();
-    const interval = setInterval(fetchApprovals, 2000);
-    return () => clearInterval(interval);
+    let lastApprovalPoll = Date.now();
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const hidden = typeof document !== 'undefined' && document.hidden;
+      const delay = hidden ? 30000 : 10000;
+      if (now - lastApprovalPoll >= delay) {
+        lastApprovalPoll = now;
+        fetchApprovals();
+      }
+    }, 5000);
+    const onVisApprovals = () => {
+      if (typeof document !== 'undefined' && !document.hidden) {
+        lastApprovalPoll = Date.now();
+        fetchApprovals();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisApprovals);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisApprovals);
+    };
   }, [isAdmin]);
 
   const handleApproveAgent = async (agentId: string) => {
