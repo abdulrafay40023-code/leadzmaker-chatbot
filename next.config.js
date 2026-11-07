@@ -50,11 +50,6 @@ const nextConfig = {
         destination: '/dashboard/chats',
         permanent: false,
       },
-      {
-        source: '/dashboard/monitoring',
-        destination: '/dashboard/chats',
-        permanent: false,
-      },
     ];
   },
 };

@@ -98,7 +98,7 @@ export const LiveChatConsole: React.FC<LiveChatConsoleProps> = ({
   const adminEmails = ['abdulrafay40023@gmail.com', 'support@leadzmaker.com'];
   const isAdmin = currentAgent.role === 'admin' || (currentAgent.email && adminEmails.includes(currentAgent.email.toLowerCase()));
 
-  const { readConvMap, deleteConversation, resetAll, visitors: liveVisitors } = useLiveSync();
+  const { readConvMap, deleteConversation, resetAll, liveVisitors } = useLiveSync();
   const [inboxResetting, setInboxResetting] = useState(false);
 
   useEffect(() => {
@@ -381,11 +381,15 @@ const sortTimelineMessages = <T extends { id?: string; seq?: number; created_at?
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const isUserScrolledUp = useRef<boolean>(false);
+  const onMarkReadRef = useRef(onMarkRead);
+  useEffect(() => {
+    onMarkReadRef.current = onMarkRead;
+  }, [onMarkRead]);
 
   const handleChatScroll = () => {
     if (!chatContainerRef.current) return;
     const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
-    isUserScrolledUp.current = scrollHeight - scrollTop - clientHeight > 80;
+    isUserScrolledUp.current = scrollHeight - scrollTop - clientHeight > 20;
   };
 
   // Real-Time Direct WebSocket Stream for Messages & Keystrokes
@@ -518,7 +522,7 @@ const sortTimelineMessages = <T extends { id?: string; seq?: number; created_at?
       clearInterval(interval);
       channelRef.current = null;
     };
-  }, [selectedConv?.id, isClaimedByOther, isAdmin, onMarkRead]);
+  }, [selectedConv?.id, isClaimedByOther, isAdmin]);
 
   // Reset selected chat only if conversations become completely empty
   useEffect(() => {
@@ -529,6 +533,8 @@ const sortTimelineMessages = <T extends { id?: string; seq?: number; created_at?
   }, [conversations.length, selectedChatId]);
 
   const prevConvIdRef = useRef<string | null>(null);
+  const prevScrollConvIdRef = useRef<string | null>(null);
+  const prevLastMsgIdRef = useRef<string | null>(null);
 
   // Synchronize messages immediately when selectedConv updates in parent conversations list
   useEffect(() => {
@@ -540,7 +546,7 @@ const sortTimelineMessages = <T extends { id?: string; seq?: number; created_at?
       return;
     }
 
-    onMarkRead?.(selectedConv.id);
+    onMarkReadRef.current?.(selectedConv.id);
 
     const isNewConv = prevConvIdRef.current !== selectedConv.id;
     prevConvIdRef.current = selectedConv.id;
@@ -549,13 +555,17 @@ const sortTimelineMessages = <T extends { id?: string; seq?: number; created_at?
       setMessages(sortTimelineMessages(selectedConv.messages || []));
     } else {
       setMessages(prev => {
+        const incoming = selectedConv.messages || [];
+        if (prev.length === incoming.length && prev.every((m, idx) => m.id === incoming[idx]?.id && m.content === incoming[idx]?.content)) {
+          return prev;
+        }
         const map = new Map<string, any>();
         prev.forEach(m => {
           if (m.conversation_id === selectedConv.id) {
             map.set(m.id, { ...m, conversation_id: selectedConv.id });
           }
         });
-        (selectedConv.messages || []).forEach(m => map.set(m.id, { ...m, conversation_id: selectedConv.id }));
+        incoming.forEach(m => map.set(m.id, { ...m, conversation_id: selectedConv.id }));
         return sortTimelineMessages(Array.from(map.values()));
       });
     }
@@ -564,7 +574,7 @@ const sortTimelineMessages = <T extends { id?: string; seq?: number; created_at?
     if (last && last.sender_type === 'visitor') {
       setLiveTypingPreview(null);
     }
-  }, [selectedConv?.id, selectedConv?.messages?.length, selectedConv?.updated_at, onMarkRead]);
+  }, [selectedConv?.id, selectedConv?.messages?.length, selectedConv?.updated_at]);
 
   // Messages strictly belonging to the currently selected conversation (Zero leakage between chats!)
   const displayMessages = useMemo(() => {
@@ -581,11 +591,20 @@ const sortTimelineMessages = <T extends { id?: string; seq?: number; created_at?
   }, [selectedConv, messages]);
 
   useEffect(() => {
-    // Only auto-scroll internal chat container (never jump outer window or iframe)
-    if (!isUserScrolledUp.current && chatContainerRef.current) {
+    if (!chatContainerRef.current || !selectedConv?.id) return;
+    const lastMsgId = displayMessages.length > 0 ? displayMessages[displayMessages.length - 1]?.id || null : null;
+    const isDifferentConv = prevScrollConvIdRef.current !== selectedConv.id;
+    const isNewMessageAdded = lastMsgId !== prevLastMsgIdRef.current;
+
+    prevScrollConvIdRef.current = selectedConv.id;
+    prevLastMsgIdRef.current = lastMsgId;
+
+    // Only scroll to bottom when opening a conversation for the first time,
+    // OR when a brand-new message arrives AND the user has not scrolled up.
+    if (isDifferentConv || (isNewMessageAdded && !isUserScrolledUp.current)) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
-  }, [displayMessages]);
+  }, [selectedConv?.id, displayMessages]);
 
   useEffect(() => {
     if (liveTypingPreview && !isUserScrolledUp.current && chatContainerRef.current) {
