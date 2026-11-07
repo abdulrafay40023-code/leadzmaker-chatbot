@@ -31,13 +31,13 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const { liveCount, chatCount, unreadConversationsCount, conversations, soundEnabled, toggleSound, unreadCount, resetUnreadCount } = useLiveSync();
 
   useEffect(() => {
-    // Detect iframe or embed query parameter
+    // Detect iframe or embed query parameter (keep sidebar expanded as requested)
     if (typeof window !== 'undefined') {
       try {
         const isEmbed = new URLSearchParams(window.location.search).get('embed') === '1' || window.self !== window.top;
         if (isEmbed) {
           setIsEmbedded(true);
-          setIsCollapsed(true);
+          setIsCollapsed(false);
         }
       } catch {}
     }

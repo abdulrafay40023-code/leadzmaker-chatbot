@@ -41,6 +41,7 @@ export interface StoreConversation {
   visitor_id: string;
   visitor_name: string;
   visitor_email?: string;
+  visitor_phone?: string;
   visitor_ip?: string;
   visitor?: StoreVisitorSession;
   assigned_agent_id?: string;
@@ -345,6 +346,9 @@ class GranularStore {
     const mergedConv: StoreConversation = {
       ...(existing || {}),
       ...conv,
+      visitor_ip: conv.visitor_ip || existing?.visitor_ip,
+      visitor_phone: conv.visitor_phone || existing?.visitor_phone,
+      visitor: conv.visitor || existing?.visitor,
       mode: isClaimed || conv.mode === 'human' || existing?.mode === 'human' ? 'human' : 'ai',
       status: isClaimed ? 'active' : (conv.status === 'pending_agent' || existing?.status === 'pending_agent' ? 'pending_agent' : 'active'),
       assigned_agent_id: conv.assigned_agent_id || existing?.assigned_agent_id,
@@ -426,13 +430,13 @@ class GranularStore {
       if (sFiles && sFiles.length > 0) {
         await Promise.all(sFiles.map(async (f) => {
           try {
-            const id = f.name.replace('.json', '');
-            if (!this.sessionCache.has(id)) {
-              const { data } = await supabaseAdmin.storage.from(BUCKET).download(`sessions/${f.name}`);
-              if (data) {
-                const text = await parseStorageData(data);
-                if (text) {
-                  const s: StoreVisitorSession = JSON.parse(text);
+            const { data } = await supabaseAdmin.storage.from(BUCKET).download(`sessions/${f.name}`);
+            if (data) {
+              const text = await parseStorageData(data);
+              if (text) {
+                const s: StoreVisitorSession = JSON.parse(text);
+                const existing = this.sessionCache.get(s.id);
+                if (!existing || new Date(s.last_active_at || 0).getTime() >= new Date(existing.last_active_at || 0).getTime()) {
                   this.sessionCache.set(s.id, s);
                 }
               }
@@ -533,6 +537,27 @@ class GranularStore {
 
       // Never show blank/unfilled visitor chats with only the initial greeting
       return hasVisitorMsg || (hasRealLead && msgs.length > 1) || hasAgentAssigned || isHandoff;
+    }).map(c => {
+      // Join latest session data if available
+      const matchedSession = allSessions.find(s =>
+        s.id === c.visitor_id ||
+        s.visitor_token === c.visitor_id ||
+        s.id === c.id ||
+        s.visitor_token === c.id ||
+        (c.visitor_ip && s.ip_address === c.visitor_ip)
+      );
+      if (matchedSession) {
+        return {
+          ...c,
+          visitor_ip: c.visitor_ip || matchedSession.ip_address,
+          visitor: {
+            ...(c.visitor || matchedSession),
+            current_page: matchedSession.current_page || c.visitor?.current_page || '/',
+            is_online: matchedSession.is_online && (now - new Date(matchedSession.last_active_at).getTime() < HEARTBEAT_TIMEOUT)
+          }
+        };
+      }
+      return c;
     });
 
     // Calculate per-website statistics for all configured websites

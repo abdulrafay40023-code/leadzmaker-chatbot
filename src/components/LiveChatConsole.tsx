@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   MessageSquare, Send,
   Lock, UserPlus, MapPin, Eye, ShieldAlert, Bot, Trash2,
-  UserCheck, ArrowRightLeft, X, ExternalLink, RotateCcw, Bell
+  UserCheck, ArrowRightLeft, X, ExternalLink, RotateCcw, Bell, CheckSquare, Pencil
 } from 'lucide-react';
 import { AgentAvatar } from '@/components/AgentAvatar';
 import { getCountryFlagUrl } from '@/lib/flags';
@@ -76,7 +76,10 @@ export const LiveChatConsole: React.FC<LiveChatConsoleProps> = ({
   const [claimModalOpen, setClaimModalOpen] = useState(false);
   const [claimError, setClaimError] = useState<string | null>(null);
   const [liveTypingPreview, setLiveTypingPreview] = useState<string | null>(null);
-  const [inboxTab, setInboxTab] = useState<'chat1' | 'chat2' | 'locked' | 'claimed'>('chat1');
+  const [inboxTab, setInboxTab] = useState<'chat1' | 'chat2' | 'live' | 'locked' | 'claimed'>('chat1');
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [agentDisplayName, setAgentDisplayName] = useState<string>(currentAgent.full_name || 'Abdul Rafay');
   const [transferModalOpen, setTransferModalOpen] = useState(false);
   const [transferAgentName, setTransferAgentName] = useState('');
   const [transferAgentEmail, setTransferAgentEmail] = useState('');
@@ -95,8 +98,40 @@ export const LiveChatConsole: React.FC<LiveChatConsoleProps> = ({
   const adminEmails = ['abdulrafay40023@gmail.com', 'support@leadzmaker.com'];
   const isAdmin = currentAgent.role === 'admin' || (currentAgent.email && adminEmails.includes(currentAgent.email.toLowerCase()));
 
-  const { readConvMap, deleteConversation, resetAll } = useLiveSync();
+  const { readConvMap, deleteConversation, resetAll, visitors: liveVisitors } = useLiveSync();
   const [inboxResetting, setInboxResetting] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedAlias = localStorage.getItem('lm_agent_alias');
+      if (savedAlias) setAgentDisplayName(savedAlias);
+    }
+  }, []);
+
+  const handleEditAgentName = () => {
+    const nextName = window.prompt('Enter your display name for Live Chat:', agentDisplayName);
+    if (nextName && nextName.trim()) {
+      setAgentDisplayName(nextName.trim());
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('lm_agent_alias', nextName.trim());
+      }
+    }
+  };
+
+  const toggleSelectChat = (id: string) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const handleBulkDeleteSelected = async () => {
+    if (selectedIds.length === 0) return;
+    if (!window.confirm(`Delete ${selectedIds.length} selected conversation(s)?`)) return;
+    for (const id of selectedIds) {
+      if (selectedChatId === id) onSelectChat('');
+      await deleteConversation(id);
+    }
+    setSelectedIds([]);
+    setSelectMode(false);
+  };
 
   const handleResetInbox = async () => {
     if (!confirm('Are you sure you want to reset all active chats to 0?')) return;
@@ -164,20 +199,27 @@ export const LiveChatConsole: React.FC<LiveChatConsoleProps> = ({
   };
 
   const getChatBadge = (conv: ChatSession) => {
-    const key = (conv.visitor_email || conv.visitor_name || conv.id).toLowerCase();
-    const group = emailToConvs.get(key) || [];
-    if (group.length <= 1) return null;
     return `Chat #${getChatNumber(conv)}`;
   };
 
-  // 4 Core Categorized Lists as requested by User (All tab removed):
+  const liveVisitorIds = useMemo(() => {
+    const set = new Set<string>();
+    (liveVisitors || []).forEach((v: any) => {
+      if (v?.id) set.add(v.id);
+    });
+    return set;
+  }, [liveVisitors]);
+
+  // 5 Categorized Lists matching Image 4:
   // 1. Chat 1: Initial / first chats of visitors
   const chat1List = sortedVisibleConversations.filter(c => getChatNumber(c) === 1);
   // 2. Chat 2: Newly started 2nd chats of visitors
   const chat2List = sortedVisibleConversations.filter(c => getChatNumber(c) === 2);
-  // 3. Locked: Visitors who requested human assistance, awaiting agent claim
+  // 3. Live: Conversations where the visitor is currently active online
+  const liveChatList = sortedVisibleConversations.filter(c => liveVisitorIds.has(c.visitor_id));
+  // 4. Locked: Visitors who requested human assistance, awaiting agent claim
   const lockedList = sortedVisibleConversations.filter(c => !c.assigned_agent_id && !c.assigned_agent_name && (c.mode === 'human' || c.status === 'pending_agent'));
-  // 4. Claimed: Chats claimed by live agents
+  // 5. Claimed: Chats claimed by live agents
   const claimedList = sortedVisibleConversations.filter(c => !!(c.assigned_agent_id || c.assigned_agent_name));
 
   // Calculate unread count for each conversation
@@ -868,17 +910,22 @@ const sortTimelineMessages = <T extends { id?: string; seq?: number; created_at?
     const isConvClaimedOther = !!(conv.assigned_agent_id || conv.assigned_agent_name) && !isConvMine;
     const isConvNeedsClaim = !isConvMine && !isConvClaimedOther && (conv.mode === 'human' || conv.status === 'pending_agent');
 
-    const flagSrc = getCountryFlagUrl(conv.visitor?.country_code || 'PK');
+    const flagSrc = getCountryFlagUrl(conv.visitor?.country_code || 'US');
     const lastMsg = conv.messages && conv.messages.length > 0 ? conv.messages[conv.messages.length - 1] : null;
     const unreadCount = getUnreadCountForConv(conv);
     const isTyping = !!(conv.typing_preview && conv.typing_preview.trim().length > 0);
     const chatBadge = getChatBadge(conv);
     const siteConfig = getWebsiteConfig(conv.property_slug || 'leadzmaker');
+    const isChecked = selectedIds.includes(conv.id);
 
     return (
       <div
         key={conv.id}
         onClick={() => {
+          if (selectMode) {
+            toggleSelectChat(conv.id);
+            return;
+          }
           if (conv.messages && conv.messages.length > 0) {
             setMessages(sortTimelineMessages(conv.messages.map(m => ({ ...m, conversation_id: conv.id }))));
           } else {
@@ -893,6 +940,15 @@ const sortTimelineMessages = <T extends { id?: string; seq?: number; created_at?
       >
         <div className="flex items-start justify-between">
           <div className="flex items-center space-x-2.5 min-w-0 flex-1 mr-2">
+            {selectMode && (
+              <input
+                type="checkbox"
+                checked={isChecked}
+                onChange={() => toggleSelectChat(conv.id)}
+                onClick={(e) => e.stopPropagation()}
+                className="w-3.5 h-3.5 rounded border-dark-border bg-dark-card text-blue-500 flex-shrink-0 cursor-pointer"
+              />
+            )}
             <img
               src={flagSrc}
               alt="Flag"
@@ -968,7 +1024,7 @@ const sortTimelineMessages = <T extends { id?: string; seq?: number; created_at?
                   handleDeleteChat(conv.id);
                 }}
                 title="Delete Chat"
-                className="p-1 rounded-lg text-dark-muted hover:text-rose-400 hover:bg-rose-500/15 transition-all opacity-0 group-hover:opacity-100"
+                className="p-1 rounded-lg text-rose-400/80 hover:text-rose-400 hover:bg-rose-500/15 transition-all"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
@@ -984,50 +1040,69 @@ const sortTimelineMessages = <T extends { id?: string; seq?: number; created_at?
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 lg:gap-3 flex-1 min-h-0 h-full bg-dark-card border border-dark-border rounded-xl lg:rounded-2xl overflow-hidden shadow-2xl">
         {/* Column 1: Conversations Inbox List */}
         <div className="lg:col-span-4 border-r border-dark-border flex flex-col bg-[#0b101d] h-full min-h-0 overflow-hidden">
-          <div className="p-3.5 border-b border-dark-border flex items-center justify-between bg-[#0e1526]">
-            <div className="flex items-center space-x-2">
-              <MessageSquare className="w-4 h-4 text-brand-primary" />
-              <h3 className="text-xs font-bold text-white uppercase tracking-wider">
-                Inbox ({visibleConversations.length})
+          <div className="p-3 border-b border-dark-border flex items-center justify-between bg-[#0e1526] gap-2">
+            <div className="flex items-center space-x-1.5 flex-shrink-0">
+              <MessageSquare className="w-4 h-4 text-brand-primary flex-shrink-0" />
+              <h3 className="text-xs font-bold text-white uppercase tracking-wider leading-tight">
+                INBOX<br />({visibleConversations.length})
               </h3>
             </div>
-            <div className="flex items-center space-x-2">
-              <span className="text-[10px] text-brand-emerald font-bold">
-                {isAdmin ? 'Admin View' : 'Agent View'}
-              </span>
-              {notifPerm !== 'granted' ? (
-                <button
-                  type="button"
-                  onClick={handleEnableNotifs}
-                  title="Enable desktop notifications for incoming visitor messages"
-                  className="px-2 py-0.5 rounded-lg bg-blue-500/15 hover:bg-blue-500/25 border border-blue-500/30 text-blue-400 text-[10px] font-bold transition-all flex items-center space-x-1"
-                >
-                  <Bell className="w-3 h-3" />
-                  <span>Alerts</span>
-                </button>
-              ) : (
-                <span title="Desktop alerts enabled" className="text-emerald-400 flex items-center" aria-label="Notifications active">
-                  <Bell className="w-3 h-3" />
-                </span>
-              )}
+            <div className="flex items-center space-x-1.5 flex-wrap justify-end">
+              <button
+                type="button"
+                onClick={handleEditAgentName}
+                title="Edit your agent display name"
+                className="px-2 py-1 rounded-lg bg-[#131d33] hover:bg-[#192642] border border-blue-500/30 text-white text-[10px] font-semibold transition-all flex items-center space-x-1"
+              >
+                <span className="truncate max-w-[75px]">{agentDisplayName}</span>
+                <Pencil className="w-2.5 h-2.5 text-blue-400 flex-shrink-0" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (selectMode && selectedIds.length > 0) {
+                    handleBulkDeleteSelected();
+                  } else {
+                    setSelectMode(!selectMode);
+                    setSelectedIds([]);
+                  }
+                }}
+                title={selectMode ? 'Click to delete selected or exit select mode' : 'Select multiple chats to delete'}
+                className={`px-2 py-1 rounded-lg border text-[10px] font-bold transition-all flex items-center space-x-1 ${
+                  selectMode
+                    ? selectedIds.length > 0
+                      ? 'bg-rose-500/20 border-rose-500/40 text-rose-300'
+                      : 'bg-blue-600/30 border-blue-400 text-white'
+                    : 'bg-blue-500/10 hover:bg-blue-500/20 border-blue-500/30 text-blue-400'
+                }`}
+              >
+                <CheckSquare className="w-3 h-3" />
+                <span>{selectMode ? (selectedIds.length > 0 ? `Delete (${selectedIds.length})` : 'Cancel') : 'Select'}</span>
+              </button>
+
               {isAdmin && (
                 <button
                   type="button"
                   onClick={handleResetInbox}
                   disabled={inboxResetting}
                   title="Reset all active chats to 0"
-                  className="px-2 py-0.5 rounded-lg bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-rose-400 text-[10px] font-bold transition-all flex items-center space-x-1"
+                  className="px-2 py-1 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-rose-400 text-[10px] font-bold transition-all flex items-center space-x-1 leading-tight"
                 >
-                  <RotateCcw className={`w-3 h-3 ${inboxResetting ? 'animate-spin' : ''}`} />
-                  <span>Reset 0</span>
+                  <RotateCcw className={`w-3 h-3 flex-shrink-0 ${inboxResetting ? 'animate-spin' : ''}`} />
+                  <span>Reset<br />Chats</span>
                 </button>
               )}
+
+              <span className="text-[10px] text-brand-emerald font-bold leading-tight text-right">
+                {isAdmin ? (<>Admin<br />View</>) : (<>Agent<br />View</>)}
+              </span>
             </div>
           </div>
 
-          {/* Tabs Grid: 4 tabs for Admin, 3 tabs for Regular Agent */}
-          <div className={`grid ${isAdmin ? 'grid-cols-4' : 'grid-cols-3'} gap-1 p-1.5 bg-[#080d1a] border-b border-dark-border`}>
-            {/* 1. Chat 1 (Old) Tab */}
+          {/* Tabs Grid: 5 tabs matching Image 4 */}
+          <div className={`grid ${isAdmin ? 'grid-cols-5' : 'grid-cols-4'} gap-1 p-1.5 bg-[#080d1a] border-b border-dark-border`}>
+            {/* 1. Chat 1 Tab */}
             <button
               type="button"
               onClick={() => setInboxTab('chat1')}
@@ -1037,19 +1112,19 @@ const sortTimelineMessages = <T extends { id?: string; seq?: number; created_at?
                   : 'text-dark-muted hover:text-white hover:bg-dark-surface'
               }`}
             >
-              <span className="text-[11px] truncate">Chat 1 (Old)</span>
+              <span className="text-[11px] truncate">Chat 1</span>
               {chat1Unread > 0 ? (
-                <span className="min-w-[17px] h-[17px] px-1 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center animate-pulse shadow-sm shadow-rose-500/50">
+                <span className="min-w-[16px] h-[16px] px-1 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center animate-pulse shadow-sm shadow-rose-500/50">
                   {chat1Unread}
                 </span>
               ) : (
-                <span className="text-[10px] px-1 rounded-full bg-white/10 text-gray-400">
+                <span className="text-[10px] px-1 rounded-full bg-white/10 text-gray-300">
                   {chat1List.length}
                 </span>
               )}
             </button>
 
-            {/* 2. Chat 2 (New) Tab */}
+            {/* 2. Chat 2 Tab */}
             <button
               type="button"
               onClick={() => setInboxTab('chat2')}
@@ -1059,19 +1134,35 @@ const sortTimelineMessages = <T extends { id?: string; seq?: number; created_at?
                   : 'text-dark-muted hover:text-white hover:bg-dark-surface'
               }`}
             >
-              <span className="text-[11px] truncate">Chat 2 (New)</span>
+              <span className="text-[11px] truncate">Chat 2</span>
               {chat2Unread > 0 ? (
-                <span className="min-w-[17px] h-[17px] px-1 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center animate-pulse shadow-sm shadow-rose-500/50">
+                <span className="min-w-[16px] h-[16px] px-1 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center animate-pulse shadow-sm shadow-rose-500/50">
                   {chat2Unread}
                 </span>
               ) : (
-                <span className="text-[10px] px-1 rounded-full bg-white/10 text-gray-400">
+                <span className="text-[10px] px-1 rounded-full bg-white/10 text-gray-300">
                   {chat2List.length}
                 </span>
               )}
             </button>
 
-            {/* 3. Locked Tab */}
+            {/* 3. Live Tab */}
+            <button
+              type="button"
+              onClick={() => setInboxTab('live')}
+              className={`py-1.5 px-1 rounded-lg text-xs font-bold transition-all flex items-center justify-center space-x-1 ${
+                inboxTab === 'live'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'text-dark-muted hover:text-white hover:bg-dark-surface'
+              }`}
+            >
+              <span className="text-[11px] truncate">Live</span>
+              <span className="text-[10px] px-1 rounded-full bg-white/10 text-gray-300">
+                {liveChatList.length}
+              </span>
+            </button>
+
+            {/* 4. Lock Tab */}
             <button
               type="button"
               onClick={() => setInboxTab('locked')}
@@ -1082,19 +1173,19 @@ const sortTimelineMessages = <T extends { id?: string; seq?: number; created_at?
               }`}
             >
               <Lock className="w-3 h-3 text-amber-400 flex-shrink-0" />
-              <span className="text-[11px] truncate">Locked</span>
+              <span className="text-[11px] truncate">Lock</span>
               {unseenLockedCount > 0 ? (
-                <span className="min-w-[17px] h-[17px] px-1 bg-amber-500 text-dark-bg text-[9px] font-black rounded-full flex items-center justify-center animate-pulse shadow-sm shadow-amber-500/50">
+                <span className="min-w-[16px] h-[16px] px-1 bg-amber-500 text-dark-bg text-[9px] font-black rounded-full flex items-center justify-center animate-pulse shadow-sm shadow-amber-500/50">
                   {unseenLockedCount}
                 </span>
               ) : (
-                <span className="text-[10px] px-1 rounded-full bg-white/10 text-gray-400">
+                <span className="text-[10px] px-1 rounded-full bg-white/10 text-gray-300">
                   {lockedList.length}
                 </span>
               )}
             </button>
 
-            {/* 4. Claimed Tab (Admin Only) */}
+            {/* 5. Claimed Tab (Admin Only) */}
             {isAdmin && (
               <button
                 type="button"
@@ -1105,14 +1196,13 @@ const sortTimelineMessages = <T extends { id?: string; seq?: number; created_at?
                     : 'text-dark-muted hover:text-white hover:bg-dark-surface'
                 }`}
               >
-                <UserCheck className="w-3 h-3 text-emerald-400 flex-shrink-0" />
                 <span className="text-[11px] truncate">Claimed</span>
                 {claimedUnread > 0 ? (
-                  <span className="min-w-[17px] h-[17px] px-1 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center animate-pulse shadow-sm shadow-rose-500/50">
+                  <span className="min-w-[16px] h-[16px] px-1 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center animate-pulse shadow-sm shadow-rose-500/50">
                     {claimedUnread}
                   </span>
                 ) : (
-                  <span className="text-[10px] px-1 rounded-full bg-white/10 text-gray-400">
+                  <span className="text-[10px] px-1 rounded-full bg-white/10 text-gray-300">
                     {claimedList.length}
                   </span>
                 )}
@@ -1155,7 +1245,24 @@ const sortTimelineMessages = <T extends { id?: string; seq?: number; created_at?
               )
             )}
 
-            {/* 3. Locked List (Awaiting Human Agent Claim) */}
+            {/* 3. Live List */}
+            {inboxTab === 'live' && (
+              liveChatList.length === 0 ? (
+                <div className="p-8 text-center text-xs text-dark-muted space-y-2">
+                  <AgentAvatar type="ai" size="md" className="mx-auto" />
+                  <p className="font-semibold text-white">No live active chats right now</p>
+                  <p className="text-[11px] leading-relaxed">
+                    Conversations where the visitor is currently online on your website will appear here.
+                  </p>
+                </div>
+              ) : (
+                <div className="divide-y divide-dark-border/30">
+                  {liveChatList.map(renderConvItem)}
+                </div>
+              )
+            )}
+
+            {/* 4. Locked List (Awaiting Human Agent Claim) */}
             {inboxTab === 'locked' && (
               lockedList.length === 0 ? (
                 <div className="p-8 text-center text-xs text-dark-muted space-y-2">
@@ -1172,7 +1279,7 @@ const sortTimelineMessages = <T extends { id?: string; seq?: number; created_at?
               )
             )}
 
-            {/* 4. Claimed List */}
+            {/* 5. Claimed List */}
             {inboxTab === 'claimed' && (
               claimedList.length === 0 ? (
                 <div className="p-8 text-center text-xs text-dark-muted space-y-2">
@@ -1486,42 +1593,60 @@ const sortTimelineMessages = <T extends { id?: string; seq?: number; created_at?
           )}
         </div>
 
-        {/* Column 3: Visitor Session Details */}
+        {/* Column 3: Visitor Session Details (Matching Image 5) */}
         <div className="lg:col-span-3 border-l border-dark-border p-4 bg-[#0b101d] flex flex-col justify-between overflow-y-auto">
           {selectedConv && (!isClaimedByOther || isAdmin) ? (
             <div className="space-y-5">
               <div>
-                <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-3">
-                  Session Information
-                </h3>
-                <div className="bg-dark-card border border-dark-border rounded-xl p-3.5 space-y-2">
-                  <div className="flex items-center space-x-2.5">
+                <div className="bg-[#111827] border border-dark-border rounded-xl p-4 space-y-3">
+                  <div className="flex items-center space-x-3">
                     <img
-                      src={getCountryFlagUrl(selectedConv.visitor?.country_code || 'pk')}
+                      src={getCountryFlagUrl(selectedConv.visitor?.country_code || 'US')}
                       alt="Flag"
-                      className="w-6 h-4 object-cover rounded shadow-sm"
+                      className="w-7 h-5 object-cover rounded shadow-sm flex-shrink-0"
                     />
-                    <div>
-                      <div className="text-xs font-bold text-white flex items-center space-x-1">
-                        <span>{selectedConv.visitor?.city || 'Karachi'}, {selectedConv.visitor?.country || 'Pakistan'}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs font-bold text-white flex items-center space-x-1.5">
+                        <span className="truncate">
+                          {selectedConv.visitor?.city && selectedConv.visitor.city !== 'Live'
+                            ? `${selectedConv.visitor.city}, ${selectedConv.visitor.country || 'United States'}`
+                            : `${selectedConv.visitor?.country || 'United States'}, ${selectedConv.visitor?.country_code || 'USA'}`}
+                        </span>
                         <a
-                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((selectedConv.visitor?.city || 'Karachi') + ', ' + (selectedConv.visitor?.country || 'Pakistan'))}`}
+                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                            (selectedConv.visitor?.city && selectedConv.visitor.city !== 'Live' ? `${selectedConv.visitor.city}, ` : '') +
+                              (selectedConv.visitor?.country || 'United States')
+                          )}`}
                           target="_blank"
                           rel="noreferrer"
-                          className="text-brand-secondary hover:text-white"
+                          title="Open in Google Maps"
+                          className="text-sky-400 hover:text-sky-300 flex-shrink-0"
                         >
-                          <MapPin className="w-3 h-3 inline" />
+                          <MapPin className="w-3.5 h-3.5 inline" />
                         </a>
                       </div>
-                      <div className="text-[10px] text-dark-muted font-mono">{selectedConv.visitor?.ip_address || selectedConv.visitor_ip || 'Live Online'}</div>
+                      <div className="text-[11px] text-dark-muted font-mono mt-0.5">
+                        {selectedConv.visitor?.ip_address || selectedConv.visitor_ip || 'Live Online'}
+                      </div>
                     </div>
                   </div>
-                  {selectedConv.visitor_email && (
-                    <div className="pt-1.5 border-t border-dark-border/60 text-[10px] text-dark-muted">
-                      <span>Email: </span>
-                      <span className="text-white font-medium">{selectedConv.visitor_email}</span>
-                    </div>
-                  )}
+
+                  <div className="pt-2.5 border-t border-dark-border/60 flex items-center justify-between text-xs">
+                    <span className="text-dark-muted">Name:</span>
+                    <span className="text-white font-bold truncate max-w-[165px]">{selectedConv.visitor_name || 'Guest'}</span>
+                  </div>
+
+                  <div className="pt-2.5 border-t border-dark-border/60 flex items-center justify-between text-xs">
+                    <span className="text-dark-muted">Email:</span>
+                    <span className="text-white font-bold truncate max-w-[175px]">{selectedConv.visitor_email || 'N/A'}</span>
+                  </div>
+
+                  <div className="pt-2.5 border-t border-dark-border/60 flex items-center justify-between text-xs">
+                    <span className="text-dark-muted">Phone:</span>
+                    <span className="text-white font-bold truncate max-w-[165px]">
+                      {(selectedConv as any).visitor_phone || (selectedConv.visitor as any)?.phone || 'N/A'}
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -1529,48 +1654,52 @@ const sortTimelineMessages = <T extends { id?: string; seq?: number; created_at?
                 const selectedSiteConfig = getWebsiteConfig(selectedConv.property_slug || 'leadzmaker');
                 return (
                   <div>
-                    <h4 className="text-[11px] font-bold text-dark-muted uppercase mb-2">Origin Website & Navigation</h4>
-                    <div className="bg-dark-card border border-dark-border rounded-xl p-3 space-y-2.5 text-xs">
+                    <h4 className="text-[11px] font-bold text-dark-muted uppercase tracking-wider mb-2.5">
+                      Origin Website & Navigation
+                    </h4>
+                    <div className="bg-[#111827] border border-dark-border rounded-xl p-4 space-y-3 text-xs">
                       <div>
-                        <span className="text-dark-muted text-[10px]">Origin Website:</span>
-                        <div className="flex items-center justify-between mt-0.5">
-                          <span className="font-bold text-white text-[11px] truncate mr-2">{selectedSiteConfig.name}</span>
-                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded flex-shrink-0 ${selectedSiteConfig.badgeColor}`}>
+                        <span className="text-dark-muted text-[11px]">Origin Website:</span>
+                        <div className="flex items-center justify-between mt-1">
+                          <span className="font-bold text-white text-xs truncate mr-2">{selectedSiteConfig.name}</span>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded flex-shrink-0 ${selectedSiteConfig.badgeColor}`}>
                             {selectedSiteConfig.shortName}
                           </span>
                         </div>
                       </div>
                       <div>
-                        <span className="text-dark-muted text-[10px]">Website URL:</span>
-                        <p className="font-mono text-[11px] text-blue-400 truncate">
+                        <span className="text-dark-muted text-[11px]">Website URL:</span>
+                        <p className="font-mono text-xs text-blue-400 truncate mt-0.5">
                           <a href={selectedSiteConfig.url} target="_blank" rel="noreferrer" className="hover:underline flex items-center space-x-1">
-                            <span className="truncate">{selectedSiteConfig.url}</span>
-                            <ExternalLink className="w-2.5 h-2.5 inline flex-shrink-0" />
+                            <span className="truncate">{selectedSiteConfig.url}/</span>
+                            <ExternalLink className="w-3 h-3 inline flex-shrink-0" />
                           </a>
                         </p>
                       </div>
                       <div>
-                        <span className="text-dark-muted text-[10px]">Active Page URL:</span>
-                        <p className="font-mono text-brand-secondary text-[11px] break-all">
+                        <span className="text-dark-muted text-[11px]">Active Page URL:</span>
+                        <p className="font-mono text-sky-400 text-xs break-all mt-0.5">
                           {selectedConv.visitor?.current_page || '/'}
                         </p>
                       </div>
                       <div>
-                        <span className="text-dark-muted text-[10px]">Traffic Referrer:</span>
-                        <p className="font-mono text-white text-[11px] truncate">
+                        <span className="text-dark-muted text-[11px]">Traffic Referrer:</span>
+                        <p className="font-bold text-white text-xs truncate mt-0.5">
                           {selectedConv.visitor?.referrer || 'Direct Visit'}
                         </p>
                       </div>
                       <div>
-                        <span className="text-dark-muted text-[10px]">Dedicated AI Key:</span>
-                        <p className="text-emerald-400 text-[10px] font-semibold flex items-center space-x-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
+                        <span className="text-dark-muted text-[11px]">Dedicated AI Key:</span>
+                        <p className="text-emerald-400 text-xs font-bold flex items-center space-x-1.5 mt-0.5">
+                          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
                           <span className="truncate">Gemini 2.0 Flash ({selectedSiteConfig.shortName})</span>
                         </p>
                       </div>
                       <div>
-                        <span className="text-dark-muted text-[10px]">Device:</span>
-                        <p className="text-dark-text text-[11px]">{selectedConv.visitor?.os || 'Mobile / Desktop'} on {selectedConv.visitor?.browser || 'Chrome'}</p>
+                        <span className="text-dark-muted text-[11px]">Device & Browser:</span>
+                        <p className="text-white font-bold text-xs mt-0.5">
+                          {selectedConv.visitor?.os || 'Mobile / Desktop'} on {selectedConv.visitor?.browser || 'Chrome'}
+                        </p>
                       </div>
                     </div>
                   </div>

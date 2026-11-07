@@ -1,7 +1,5 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { getWebsiteConfig, decodeKey } from './websites-config';
-
-const defaultApiKey = decodeKey('QUl6YVN5QWJRZUtnc3FEcGJRTUpDOXhGTnFXUm1DaTc3VmRaOVRr', 'GEMINI_API_KEY');
+import { getWebsiteConfig, GEMINI_API_KEYS } from './websites-config';
 
 export function isHumanHandoffRequested(text: string): boolean {
   const clean = (text || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
@@ -117,7 +115,7 @@ export async function generateAIChatResponse({
     };
   }
 
-  // 2. Greetings (expanded — catch "hey bro", "hello there", "salam", etc.)
+  // 3. Greetings (expanded — catch "hey bro", "hello there", "salam", etc.)
   if (/^(hey|hi|hello|heyy|salam|aoa|hola|good morning|good afternoon|good evening|hey bro|hi there|hello there|heyy bro|what'?s up|sup|yo)(\s.*)?$/i.test(lower)) {
     return {
       text: cleanName ? `Hey ${cleanName}, how can i help you today ?` : 'Hey, how can i help you today ?',
@@ -125,7 +123,7 @@ export async function generateAIChatResponse({
     };
   }
 
-  // 3. Status checks & quick acknowledgements
+  // 4. Status checks & quick acknowledgements
   if (/^(fine|good|great|doing good|doing well|i am good|i am fine|all good|thk|theek|alright|ok|okay)$/i.test(lower)) {
     return {
       text: appendAgentHandoffNotice(`Glad to hear that! How can I help you regarding our ${siteConfig.shortName} services or packages today?`),
@@ -133,7 +131,7 @@ export async function generateAIChatResponse({
     };
   }
 
-  // 4. Quick appreciations / short affirmations
+  // 5. Quick appreciations / short affirmations
   if (/^(thanks|thank you|shukriya|thx|cool|nice|ok bro|alright bro|done|got it)$/i.test(lower)) {
     return {
       text: appendAgentHandoffNotice(`You're very welcome! Feel free to ask any other questions about ${siteConfig.name} or our live support.`),
@@ -143,9 +141,14 @@ export async function generateAIChatResponse({
 
   const systemPrompt = siteConfig.systemPrompt + (cleanName ? `\nThe visitor's name is "${cleanName}". Address them warmly by name when appropriate.` : '');
   
-  // Valid active fast Gemini model names (verified 200 OK)
-  const modelsToTry = ['gemini-flash-latest', 'gemini-3.6-flash', 'gemini-3.5-flash-lite'];
-  const keysToTry = [siteConfig.geminiApiKey, defaultApiKey].filter(Boolean);
+  // Fast active Gemini models (verified 200 OK)
+  const modelsToTry = ['gemini-3.6-flash', 'gemini-3.5-flash-lite', 'gemini-flash-lite-latest', 'gemini-flash-latest'];
+  
+  // Collect all configured keys (including env vars if comma-separated)
+  const envKeys = (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY)
+    ? process.env.GEMINI_API_KEY.split(',').map(k => k.trim()).filter(Boolean)
+    : [];
+  const keysToTry = Array.from(new Set([...GEMINI_API_KEYS, ...envKeys, siteConfig.geminiApiKey].filter(Boolean)));
 
   for (const key of keysToTry) {
     const aiClient = new GoogleGenerativeAI(key);
@@ -156,13 +159,13 @@ export async function generateAIChatResponse({
           model: modelName,
           systemInstruction: systemPrompt,
           generationConfig: {
-            maxOutputTokens: 600,
+            maxOutputTokens: 4096,
             temperature: 0.5
           }
         });
 
         // Slice to recent messages excluding the current prompt
-        const conversationHistory = messages.slice(-7, -1).map(m => ({
+        const conversationHistory = messages.slice(-10, -1).map(m => ({
           role: m.role === 'user' ? 'user' as const : 'model' as const,
           parts: [{ text: m.content }]
         }));
@@ -214,8 +217,14 @@ export async function generateAIChatResponse({
       } catch (err: unknown) {
         const errMsg = (err as Error)?.message || '';
         console.warn(`Model ${modelName} with key ${key?.substring(0, 8)}... failed:`, errMsg);
-        if (errMsg.includes('API_KEY_INVALID')) {
-          break; // Try next key
+        if (
+          errMsg.includes('API_KEY_INVALID') ||
+          errMsg.includes('free tier is not available') ||
+          errMsg.includes('403') ||
+          errMsg.includes('429') ||
+          errMsg.includes('quota')
+        ) {
+          break; // Try next key immediately
         }
       }
     }

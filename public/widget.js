@@ -41,8 +41,24 @@
   } catch (e) {
     isInsideIframe = true;
   }
-  var isLiveChatAdmin = window.location.pathname === '/admin/livechat';
+  var isLiveChatAdmin = window.location.pathname === '/admin/livechat' || window.location.pathname.indexOf('/admin') === 0;
   var suppressWidget = isInsideIframe || isLiveChatAdmin;
+
+  // Preserve initial external referrer across SPA route transitions
+  var initialReferrer = 'Direct';
+  try {
+    var savedRef = sessionStorage.getItem('lm_initial_referrer');
+    if (savedRef) {
+      initialReferrer = savedRef;
+    } else if (document.referrer) {
+      var refHost = '';
+      try { refHost = new URL(document.referrer).hostname.toLowerCase(); } catch (e) {}
+      if (refHost && refHost !== currentHost && refHost.indexOf('leadzmaker.com') === -1) {
+        initialReferrer = document.referrer;
+      }
+      sessionStorage.setItem('lm_initial_referrer', initialReferrer);
+    }
+  } catch (e) {}
 
   // PER-TAB SESSION ID GENERATED STRICTLY ONCE PER TAB
   var tabSessionId;
@@ -73,8 +89,8 @@
   function sendTracking(isNew) {
     if (suppressWidget) return;
     try {
-      var currentUrl = window.location.href || window.location.pathname || '/';
-      var referrer = document.referrer || 'Direct';
+      var currentUrl = window.location.pathname + (window.location.search || '');
+      var referrer = initialReferrer || document.referrer || 'Direct';
 
       fetch(serverOrigin + '/api/visitor/track', {
         method: 'POST',
@@ -83,7 +99,7 @@
           sessionId: tabSessionId,
           visitorToken: visitorToken,
           propertySlug: propertySlug,
-          currentPage: currentUrl,
+          currentPage: currentUrl || '/',
           referrer: referrer,
           isNewPageView: isNew
         })
@@ -93,6 +109,21 @@
 
   // Initial track on page load
   sendTracking(true);
+
+  // Hook SPA navigation (pushState / popstate) for instant Active Page updates
+  try {
+    var origPushState = history.pushState;
+    if (origPushState) {
+      history.pushState = function () {
+        var ret = origPushState.apply(this, arguments);
+        setTimeout(function () { sendTracking(false); }, 50);
+        return ret;
+      };
+    }
+    window.addEventListener('popstate', function () {
+      setTimeout(function () { sendTracking(false); }, 50);
+    });
+  } catch (e) {}
 
   function sendPing() {
     if (suppressWidget) return;
@@ -105,17 +136,18 @@
           sessionId: tabSessionId,
           visitorToken: visitorToken,
           propertySlug: propertySlug,
-          currentPage: currentPath
+          currentPage: currentPath,
+          referrer: initialReferrer || document.referrer || 'Direct'
         })
       }).catch(function () {});
     } catch (e) {}
   }
 
-  // 12-Second Active Heartbeat Ping (well within 30s server timeout, saves 60% serverless invocations)
+  // 8-Second Active Heartbeat Ping for real-time live visitor monitoring
   setInterval(function () {
     if (typeof document !== 'undefined' && document.hidden) return;
     sendPing();
-  }, 12000);
+  }, 8000);
 
   // Immediate ping when visitor switches tabs or focuses the window
   if (typeof document.addEventListener !== 'undefined') {
@@ -174,7 +206,7 @@
   if (!suppressWidget) {
     var iframe = document.createElement('iframe');
     iframe.id = 'leadzmaker-livechat-iframe';
-    iframe.src = serverOrigin + '/widget?property=' + encodeURIComponent(propertySlug) + '&page=' + encodeURIComponent(window.location.href || window.location.pathname || '/') + '&ref=' + encodeURIComponent(document.referrer || 'Direct') + '&session=' + encodeURIComponent(tabSessionId) + '&token=' + encodeURIComponent(visitorToken) + '&_v=20260907_3';
+    iframe.src = serverOrigin + '/widget?property=' + encodeURIComponent(propertySlug) + '&page=' + encodeURIComponent(window.location.pathname || '/') + '&ref=' + encodeURIComponent(initialReferrer || document.referrer || 'Direct') + '&session=' + encodeURIComponent(tabSessionId) + '&token=' + encodeURIComponent(visitorToken) + '&_v=20261108_1';
     iframe.style.position = 'fixed';
     iframe.style.bottom = '20px';
     iframe.style.right = '20px';

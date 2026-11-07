@@ -1,9 +1,48 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { granularStore, StoreVisitorSession, StoreMessage, isStaffOrAdmin, isStaffOrAdminAsync } from '@/lib/store';
+import { granularStore, StoreVisitorSession, isStaffOrAdminAsync } from '@/lib/store';
 import { lookupGeoAsync } from '@/lib/geo';
 import { parseUserAgent } from '@/lib/device';
 import { broadcastRealtimeEvent } from '@/lib/realtime';
-import { detectWebsiteSlugFromUrl } from '@/lib/websites-config';
+
+function normalizePagePath(rawPage?: string | null): string {
+  if (!rawPage) return '/';
+  const trimmed = rawPage.trim();
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    try {
+      const u = new URL(trimmed);
+      return (u.pathname || '/') + (u.search || '');
+    } catch {
+      return '/';
+    }
+  }
+  return trimmed.startsWith('/') ? trimmed : '/' + trimmed;
+}
+
+function normalizeReferrer(rawRef?: string | null): string {
+  if (!rawRef) return 'Direct';
+  const r = rawRef.trim();
+  if (!r || r.toLowerCase() === 'direct' || r.toLowerCase() === 'direct visit') return 'Direct';
+  try {
+    const u = new URL(r);
+    const h = u.hostname.toLowerCase().replace(/^www\./, '');
+    if (h.includes('leadzmaker.com') || h.includes('leadzmaker-chatbot') || h === 'localhost') {
+      return 'Direct';
+    }
+    if (h.includes('google.')) return 'Google';
+    if (h.includes('bing.')) return 'Bing';
+    if (h.includes('yahoo.')) return 'Yahoo';
+    if (h.includes('facebook.') || h.includes('fb.')) return 'Facebook';
+    if (h.includes('instagram.')) return 'Instagram';
+    if (h.includes('linkedin.')) return 'LinkedIn';
+    if (h.includes('youtube.') || h.includes('youtu.be')) return 'YouTube';
+    if (h.includes('tiktok.')) return 'TikTok';
+    if (h.includes('twitter.') || h.includes('x.com') || h === 't.co') return 'X (Twitter)';
+    return h;
+  } catch {
+    if (r.toLowerCase().includes('leadzmaker')) return 'Direct';
+    return r;
+  }
+}
 
 export async function OPTIONS() {
   return new NextResponse(null, {
@@ -27,7 +66,8 @@ export async function POST(req: NextRequest) {
       referrer = 'Direct',
       isNewPageView = false,
       visitorName,
-      visitorEmail
+      visitorEmail,
+      visitorPhone
     } = body;
 
     // Strict block: Agents and Admins cannot enter/chat as a client/visitor
@@ -39,25 +79,31 @@ export async function POST(req: NextRequest) {
       }, { status: 403 });
     }
 
-    const refererHeader = req.headers.get('referer');
-    const effectiveSlug = (propertySlug && propertySlug !== 'leadzmaker')
-      ? propertySlug
-      : detectWebsiteSlugFromUrl(currentPage || refererHeader);
+    const refererHeader = req.headers.get('referer') || '';
+    const cleanPath = normalizePagePath(currentPage || refererHeader);
 
-    // Completely ignore CRM traffic (salesflow-ai, teals-crm, etc.) as requested
-    const isCrmTraffic = !effectiveSlug || effectiveSlug === 'leadzmaker' ||
-      (currentPage && (currentPage.includes('salesflow-ai') || currentPage.includes('teals-livechat'))) ||
-      (refererHeader && (refererHeader.includes('salesflow-ai') || refererHeader.includes('teals-livechat')));
+    // Ignore admin livechat console / dashboard self-traffic only
+    const isAdminConsoleTraffic =
+      cleanPath.startsWith('/admin/livechat') ||
+      cleanPath.startsWith('/admin') ||
+      cleanPath.startsWith('/dashboard/chats') ||
+      cleanPath.startsWith('/dashboard/monitoring') ||
+      cleanPath.startsWith('/dashboard/saved-chats') ||
+      cleanPath.startsWith('/dashboard/admin') ||
+      (currentPage && (currentPage.includes('salesflow-ai') || currentPage.includes('teals-livechat') || currentPage.includes('/admin/livechat')));
 
-    if (isCrmTraffic) {
+    if (isAdminConsoleTraffic) {
       return NextResponse.json({
         success: true,
         tracked: false,
-        message: 'CRM traffic ignored'
+        message: 'Admin console traffic ignored'
+      }, {
+        headers: { 'Access-Control-Allow-Origin': '*' }
       });
     }
 
-    const sid = sessionId || ('tab_' + Math.random().toString(36).substring(2, 10));
+    const effectiveSlug = propertySlug || 'leadzmaker';
+    const sid = sessionId || visitorToken || ('tab_' + Math.random().toString(36).substring(2, 10));
     const token = visitorToken || sid;
 
     // 1. Resolve real client IP with full CDN / Proxy header priority
@@ -76,9 +122,8 @@ export async function POST(req: NextRequest) {
     ip = ip.trim();
 
     if (!ip || ip === '::1' || ip === '127.0.0.1') {
-      ip = req.headers.get('x-forwarded-for') || '182.188.238.155';
+      ip = req.headers.get('x-forwarded-for') || '127.0.0.1';
       if (ip.includes(',')) ip = ip.split(',')[0].trim();
-      if (ip === '::1' || ip === '127.0.0.1') ip = '182.188.238.155';
     }
 
     // 2. Extract edge geolocation hints provided directly by Vercel Edge / Cloudflare
@@ -98,6 +143,13 @@ export async function POST(req: NextRequest) {
     const dev = parseUserAgent(userAgent);
     const nowIso = new Date().toISOString();
 
+    // Preserve original created_at and external referrer if session already exists
+    const existingSession = await granularStore.getSession(sid);
+    const cleanRef = normalizeReferrer(referrer);
+    const finalRef = (cleanRef === 'Direct' && existingSession?.referrer && existingSession.referrer !== 'Direct')
+      ? existingSession.referrer
+      : cleanRef;
+
     const session: StoreVisitorSession = {
       id: sid,
       visitor_token: token,
@@ -107,14 +159,15 @@ export async function POST(req: NextRequest) {
       country_code: geo.countryCode,
       city: geo.city,
       flag: geo.flag,
-      referrer: referrer || refererHeader || 'Direct',
-      current_page: currentPage,
+      referrer: finalRef,
+      current_page: cleanPath,
       browser: dev.browser,
       os: dev.os,
       device: dev.device,
       is_online: true,
+      visit_count: existingSession?.visit_count || 1,
       last_active_at: nowIso,
-      created_at: nowIso
+      created_at: existingSession?.created_at || nowIso
     };
 
     if (isNewPageView) {
@@ -124,14 +177,15 @@ export async function POST(req: NextRequest) {
     // Save session in memory/cloud
     await granularStore.saveSession(session);
 
+    // Also attach visitor details to any existing conversation for this visitor
     let conv = await granularStore.getConversation(token);
     if (conv) {
       if (visitorName) conv.visitor_name = visitorName;
       if (visitorEmail) conv.visitor_email = visitorEmail;
-      if (!conv.property_slug || conv.property_slug === 'leadzmaker') {
-        conv.property_slug = effectiveSlug;
-      }
+      if (visitorPhone) (conv as any).visitor_phone = visitorPhone;
+      conv.property_slug = effectiveSlug;
       conv.visitor_ip = ip;
+      conv.visitor = session;
       conv.updated_at = nowIso;
       await granularStore.saveConversation(conv);
     }
@@ -145,12 +199,13 @@ export async function POST(req: NextRequest) {
       propertySlug: effectiveSlug,
       todayCount: activeData.todayVisitorsCount,
       totalUniqueCount: activeData.totalUniqueCount,
-      isNew: true,
-      currentPage
+      isNew: !existingSession,
+      currentPage: cleanPath
     });
 
     return new NextResponse(JSON.stringify({
       success: true,
+      tracked: true,
       session,
       conversation: conv
     }), {
@@ -162,6 +217,9 @@ export async function POST(req: NextRequest) {
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Server error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: message }, {
+      status: 500,
+      headers: { 'Access-Control-Allow-Origin': '*' }
+    });
   }
 }

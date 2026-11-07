@@ -23,6 +23,14 @@ export function decodeKey(b64: string, envVar?: string): string {
   return Buffer.from(b64, 'base64').toString('utf-8');
 }
 
+export const GEMINI_API_KEYS: string[] = [
+  decodeKey('QVEuQWI4Uk42TFpPekVydzhoclA5a1lCeFZZZ1llNklvSFRuMzZIVk10ZzA5SmdGTHk4Q3c=', 'GEMINI_API_KEY_1'),
+  decodeKey('QVEuQWI4Uk42TERWRXVHd1FEY2twOUlzbkVHN09LYVpTcUhMLWE2TndfTDViVFI1d3BtakE=', 'GEMINI_API_KEY_2'),
+  decodeKey('QVEuQWI4Uk42S3FmVFBFWlF4UWNlajRSY29BbWV2aS1yTTZOVWtyelN4TVh6aXdoZjdKcEE=', 'GEMINI_API_KEY_3'),
+  decodeKey('QUl6YVN5REtaMXZpSHoySlI2RjhhY2tLbWZIVFhtN0lxZGVyd00w', 'GEMINI_API_KEY'),
+  decodeKey('QUl6YVN5QWJRZUtnc3FEcGJRTUpDOXhGTnFXUm1DaTc3VmRaOVRr')
+];
+
 export const WEBSITES: Record<string, WebsiteConfig> = {
   'leadzmaker': {
     id: 'leadzmaker',
@@ -30,9 +38,9 @@ export const WEBSITES: Record<string, WebsiteConfig> = {
     name: 'LeadzMaker',
     shortName: 'LeadzMaker',
     domain: 'leadzmaker.com',
-    url: 'https://leadzmaker.com/',
+    url: 'https://www.leadzmaker.com/',
     hostnames: ['leadzmaker.com', 'www.leadzmaker.com', 'localhost'],
-    geminiApiKey: decodeKey('QUl6YVN5REtaMXZpSHoySlI2RjhhY2tLbWZIVFhtN0lxZGVyd00w', 'GEMINI_API_KEY'),
+    geminiApiKey: GEMINI_API_KEYS[0],
     phone: '+1 (555) 019-2834',
     email: 'support@leadzmaker.com',
     category: 'crm',
@@ -47,7 +55,7 @@ export const WEBSITES: Record<string, WebsiteConfig> = {
       'Credit Package System with Free Signup Credits'
     ],
     systemPrompt: `You are "LeadzMaker AI Assistant", the official expert support assistant for LeadzMaker (https://leadzmaker.com/).
-You are intelligent, energetic, highly professional, concise, and focused on helping visitors, agencies, and B2B businesses generate profitable leads and close clients.
+You are intelligent, energetic, highly professional, clear, and focused on helping visitors, agencies, and B2B businesses generate profitable leads and close clients.
 
 ABOUT LEADZMAKER (https://leadzmaker.com/):
 - Official Platform: LeadzMaker - AI-Powered B2B Lead Generation & Prospecting Suite.
@@ -59,10 +67,10 @@ CORE TOOLS & FEATURES:
 3. Bulk Email Sender: Launch personalized cold email campaigns directly to your extracted leads with SMTP connection and deliverability tracking.
 4. Business Niches: Gyms, Hair Salons, Medical & Dental Clinics, Real Estate Agents, General Contractors, Restaurants, and any custom business category.
 5. Clean Data & Export: Instant download as formatted CSV or Excel file.
-6. Credits & Pricing: Affordable, transparent credit packages with free trial searches on signup.
+6. Credits & Pricing: Affordable, transparent credit packages with 5 free trial leads on signup for eligible regions.
 
 CRITICAL RULES:
-1. Answer queries clearly, smartly, and accurately about LeadzMaker's tools, features, lead extraction, and pricing.
+1. Answer queries clearly, completely, and accurately about LeadzMaker's tools, features, lead extraction, and pricing. Never cut off your sentences.
 2. STRICT ENGLISH ONLY: Always communicate and respond strictly in professional, clean English. Even if the visitor writes in Urdu, Roman Urdu, Hindi, or any other language, understand their query and answer politely in English.
 3. STRICT OUT-OF-SCOPE & IRRELEVANT QUERY RULE:
    If a visitor asks about anything unrelated to LeadzMaker (e.g. medical advice, cars, gaming, sports, crypto, general homework, or meaningless chatter):
@@ -70,7 +78,7 @@ CRITICAL RULES:
    "I am here to assist specifically with the LeadzMaker lead generation platform. For any other inquiries or further details, please reach out to our team at support@leadzmaker.com."
 4. HUMAN AGENT HANDOFF:
    If the visitor explicitly asks to talk to a human agent, real person, live support, or admin (e.g. "talk to human", "real person please", "insan se baat", "transfer to agent"), always append "[HANDOFF_REQUIRED]" at the very end of your reply.
-5. Provide a direct, natural, and helpful response. Do not output internal thoughts, checklists, or meta-commentary.
+5. Provide a direct, natural, complete, and helpful response. Do not output internal thoughts, checklists, or meta-commentary.
 6. ABSOLUTELY NO EM-DASHES: NEVER use the em-dash character ("—") or en-dash ("–") or long dash in any response. Never place dashes between clauses. Use standard commas, periods, or parentheses instead.
 7. HUMAN AGENT AVAILABILITY NOTE:
    Unless the user has explicitly asked for a human handoff, always conclude your response with:
@@ -81,11 +89,11 @@ CRITICAL RULES:
 
 export const DEFAULT_WEBSITE_CONFIG: WebsiteConfig = WEBSITES['leadzmaker'];
 
-export function detectWebsiteSlugFromUrl(urlOrHostname?: string | null): string {
+export function detectWebsiteSlugFromUrl(_urlOrHostname?: string | null): string {
   return 'leadzmaker';
 }
 
-export function getWebsiteConfig(propertySlug?: string | null, urlOrHostname?: string | null): WebsiteConfig {
+export function getWebsiteConfig(propertySlug?: string | null, _urlOrHostname?: string | null): WebsiteConfig {
   if (propertySlug && WEBSITES[propertySlug]) {
     return WEBSITES[propertySlug];
   }

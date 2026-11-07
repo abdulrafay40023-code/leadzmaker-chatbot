@@ -1,8 +1,47 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { granularStore, StoreMessage, StoreConversation, isStaffOrAdmin, isStaffOrAdminAsync } from '@/lib/store';
+import { granularStore, StoreMessage, StoreConversation, StoreVisitorSession, isStaffOrAdminAsync } from '@/lib/store';
 import { broadcastRealtimeEvent } from '@/lib/realtime';
 import { isHumanHandoffRequested, generateAIChatResponse } from '@/lib/gemini';
 import { getWebsiteConfig, detectWebsiteSlugFromUrl } from '@/lib/websites-config';
+import { lookupGeoAsync } from '@/lib/geo';
+import { parseUserAgent } from '@/lib/device';
+
+function normalizePagePath(rawPage?: string | null): string {
+  if (!rawPage) return '/';
+  const trimmed = rawPage.trim();
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    try {
+      const u = new URL(trimmed);
+      return (u.pathname || '/') + (u.search || '');
+    } catch {
+      return '/';
+    }
+  }
+  return trimmed.startsWith('/') ? trimmed : '/' + trimmed;
+}
+
+function normalizeReferrer(rawRef?: string | null): string {
+  if (!rawRef) return 'Direct Visit';
+  const r = rawRef.trim();
+  if (!r || r.toLowerCase() === 'direct' || r.toLowerCase() === 'direct visit') return 'Direct Visit';
+  try {
+    const u = new URL(r);
+    const h = u.hostname.toLowerCase().replace(/^www\./, '');
+    if (h.includes('leadzmaker.com') || h.includes('leadzmaker-chatbot') || h === 'localhost') {
+      return 'Direct Visit';
+    }
+    if (h.includes('google.')) return 'Google Search';
+    if (h.includes('bing.')) return 'Bing Search';
+    if (h.includes('facebook.') || h.includes('fb.')) return 'Facebook';
+    if (h.includes('instagram.')) return 'Instagram';
+    if (h.includes('linkedin.')) return 'LinkedIn';
+    if (h.includes('youtube.') || h.includes('youtu.be')) return 'YouTube';
+    return h;
+  } catch {
+    if (r.toLowerCase().includes('leadzmaker')) return 'Direct Visit';
+    return r;
+  }
+}
 
 export async function OPTIONS() {
   return new NextResponse(null, {
@@ -52,6 +91,7 @@ export async function POST(req: NextRequest) {
       senderType,
       senderName,
       senderEmail,
+      senderPhone,
       content,
       isWhisper = false,
       isHumanConnected = false,
@@ -77,20 +117,67 @@ export async function POST(req: NextRequest) {
     const siteConfig = getWebsiteConfig(effectiveSlug);
 
     const convId = conversationId || visitorToken || ('conv_' + Math.random().toString(36).substring(2, 9));
+    const now = new Date().toISOString();
 
-    // Keep visitor session alive when they send a message (prevents live count drop)
-    if (senderType === 'visitor' && visitorToken) {
+    // Resolve visitor's real IP, Geolocation, and Device when visitor sends a message or initializes chat
+    let visitorSessionInfo: StoreVisitorSession | undefined;
+    let visitorIp: string | undefined;
+
+    if (senderType === 'visitor' || senderType === 'system') {
+      let ip =
+        req.headers.get('cf-connecting-ip') ||
+        req.headers.get('x-real-ip') ||
+        req.headers.get('x-client-ip') ||
+        req.headers.get('x-forwarded-for') ||
+        req.headers.get('fastly-client-ip') ||
+        req.headers.get('true-client-ip') ||
+        '';
+      if (ip.includes(',')) ip = ip.split(',')[0].trim();
+      ip = ip.trim();
+
+      const edgeCountryCode = req.headers.get('x-vercel-ip-country') || req.headers.get('cf-ipcountry') || undefined;
+      const rawEdgeCity = req.headers.get('x-vercel-ip-city');
+      const edgeCity = rawEdgeCity ? decodeURIComponent(rawEdgeCity) : undefined;
+      const edgeRegion = req.headers.get('x-vercel-ip-country-region') || undefined;
+
+      const geo = await lookupGeoAsync(ip, {
+        countryCode: edgeCountryCode,
+        city: edgeCity,
+        region: edgeRegion
+      });
+      const dev = parseUserAgent(req.headers.get('user-agent') || '');
+      const cleanPath = normalizePagePath(pageUrl || refererHeader || '/');
+      const cleanRef = normalizeReferrer(referrerUrl);
+
+      const existingSess = visitorToken ? await granularStore.getSession(visitorToken) : null;
+      visitorIp = ip || existingSess?.ip_address;
+
+      visitorSessionInfo = {
+        id: existingSess?.id || visitorToken || convId,
+        visitor_token: visitorToken || convId,
+        property_slug: effectiveSlug,
+        ip_address: visitorIp || 'Unknown',
+        country: geo.countryCode !== 'UN' ? geo.country : (existingSess?.country || geo.country),
+        country_code: geo.countryCode !== 'UN' ? geo.countryCode : (existingSess?.country_code || geo.countryCode),
+        city: (geo.city && geo.city !== 'Unknown') ? geo.city : (existingSess?.city || geo.city),
+        flag: geo.countryCode !== 'UN' ? geo.flag : (existingSess?.flag || geo.flag),
+        referrer: (cleanRef !== 'Direct Visit') ? cleanRef : (existingSess?.referrer || 'Direct Visit'),
+        current_page: cleanPath || existingSess?.current_page || '/',
+        browser: dev.browser || existingSess?.browser || 'Chrome',
+        os: dev.os || existingSess?.os || 'Windows',
+        device: dev.device || existingSess?.device || 'Desktop',
+        is_online: true,
+        visit_count: existingSess?.visit_count || 1,
+        last_active_at: now,
+        created_at: existingSess?.created_at || now
+      };
+
       try {
-        const session = await granularStore.getSession(visitorToken);
-        if (session) {
-          session.last_active_at = new Date().toISOString();
-          session.is_online = true;
-          await granularStore.saveSession(session);
-        }
+        await granularStore.saveSession(visitorSessionInfo);
       } catch {}
     }
+
     let conv = await granularStore.getConversation(convId);
-    const now = new Date().toISOString();
 
     // STRICT HUMAN CONVERSATION CHECK: If claimed, has agent, or agent ever replied, it is 100% HUMAN!
     const hasAgentAssigned = !!(conv?.assigned_agent_id || conv?.assigned_agent_name || assignedAgentName);
@@ -128,6 +215,9 @@ export async function POST(req: NextRequest) {
         visitor_id: visitorToken || convId,
         visitor_name: initialVisitorName,
         visitor_email: senderEmail || undefined,
+        visitor_phone: senderPhone || undefined,
+        visitor_ip: visitorIp,
+        visitor: visitorSessionInfo,
         mode: isHumanMode ? 'human' : 'ai',
         status: isHumanMode ? (hasAgentAssigned ? 'active' : 'pending_agent') : 'active',
         assigned_agent_name: assignedAgentName || undefined,
@@ -157,11 +247,19 @@ export async function POST(req: NextRequest) {
         if (assignedAgentName && !conv.assigned_agent_name) conv.assigned_agent_name = assignedAgentName;
         if (!conv.status) conv.status = hasAgentAssigned ? 'active' : 'pending_agent';
       }
-      if (senderType === 'visitor') {
+      if (senderType === 'visitor' || senderType === 'system') {
         if (senderName && senderName !== 'Visitor' && senderName !== 'You' && senderName !== 'System') {
           conv.visitor_name = senderName;
         }
         if (senderEmail) conv.visitor_email = senderEmail;
+        if (senderPhone) conv.visitor_phone = senderPhone;
+        if (visitorIp) conv.visitor_ip = visitorIp;
+        if (visitorSessionInfo) {
+          conv.visitor = {
+            ...(conv.visitor || {}),
+            ...visitorSessionInfo
+          };
+        }
       }
     }
 
@@ -192,7 +290,6 @@ export async function POST(req: NextRequest) {
 
     // CASE 1: Visitor requested fresh human handoff (AI -> Human transition)
     if (humanRequested && !isAlreadyHandledByHuman) {
-      console.log('[CHAT_DEBUG] Visitor explicitly requested human handoff:', content);
       conv.mode = 'human';
       conv.status = 'pending_agent';
       conv.last_visitor_message_at = now;
