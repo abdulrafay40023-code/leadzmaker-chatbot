@@ -1005,10 +1005,11 @@ export const WidgetChat: React.FC<WidgetChatProps> = ({
 
     const cleanHandoffCheck = (text: string) => {
       const clean = (text || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
-      const hasDirect = /(real person|real human|live agent|human agent|real agent|not ai|stop ai|human please|agent please|talk to human|talk to agent|speak to agent|connect to agent|speak to human|talk to a person|real support|insan se baat|bande se baat|bndey sy baat|bnde se baat|real bndey|real banda|actual person|actual human|talk to real person|speak to real person|chat with human|human support|live support|agent chahiye|insan chahiye|agent se baat|representative)/i.test(clean);
+      if (clean.includes('real estate agent') || clean.includes('insurance agent') || clean.includes('travel agent')) return false;
+      const hasDirect = /(real person|real human|live agent|human agent|real agent|not ai|stop ai|human please|agent please|talk to human|talk to agent|speak to agent|connect to agent|speak to human|talk to a person|real support|insan se baat|bande se baat|bndey sy baat|bnde se baat|real bndey|real banda|actual person|actual human|talk to real person|speak to real person|chat with human|human support|live support|agent chahiye|insan chahiye|agent se baat|live representative|customer service agent)/i.test(clean);
       if (hasDirect) return true;
-      const humans = ['human', 'real person', 'live person', 'live agent', 'real agent', 'representative', 'support person', 'insan', 'real banda', 'bndey', 'bande', 'agent'];
-      const actions = ['talk', 'speak', 'connect', 'transfer', 'switch', 'baat'];
+      const humans = ['human', 'real person', 'live person', 'live agent', 'real agent', 'support agent', 'representative', 'insan', 'real banda', 'bndey', 'bande'];
+      const actions = ['talk to', 'speak to', 'speak with', 'connect to', 'connect with', 'transfer to', 'chat with', 'baat'];
       return actions.some(a => clean.includes(a)) && humans.some(h => clean.includes(h));
     };
 

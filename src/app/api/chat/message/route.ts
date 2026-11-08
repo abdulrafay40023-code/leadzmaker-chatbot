@@ -331,10 +331,13 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // CASE 2: AI Mode with Visitor message - STRICTLY ONLY IF NO HUMAN AGENT IS INVOLVED!
-    const isStrictlyAi = conv.mode === 'ai' && !isHumanMode && !hasAgentAssigned && !hasAgentMessages && !hasClaimSystemMsg && conv.status !== 'pending_agent';
+    // CASE 2: AI Mode with Visitor message - Answer whenever no real human agent has claimed/replied!
+    const isClaimedByRealAgent = hasAgentAssigned || hasAgentMessages || hasClaimSystemMsg;
+    const shouldAiAnswer = !isClaimedByRealAgent && !humanRequested && senderType === 'visitor';
 
-    if (isStrictlyAi && senderType === 'visitor') {
+    if (shouldAiAnswer) {
+      conv.mode = 'ai';
+      conv.status = 'active';
       conv.last_visitor_message_at = now;
 
       // 1. Broadcast visitor message instantly in parallel with storage
@@ -352,7 +355,7 @@ export async function POST(req: NextRequest) {
         granularStore.saveConversation(conv)
       ]);
 
-      // 2. Generate AI response in background
+      // 2. Generate AI response with visitor's country & currency eligibility context
       const historyForAI = conv.messages
         .filter(m => m.sender_type === 'visitor' || m.sender_type === 'ai')
         .map(m => ({
@@ -366,14 +369,24 @@ export async function POST(req: NextRequest) {
       const aiRes = await generateAIChatResponse({
         messages: historyForAI,
         visitorName: conv.visitor_name,
+        visitorCountry: conv.visitor?.country,
+        visitorCountryCode: conv.visitor?.country_code,
         property: activeSlug
       });
 
-      // Reload fresh conversation state from store
+      // Reload fresh conversation state from store and ensure visitor message & metadata are preserved
       const freshConv = await granularStore.getConversation(conv.id) || conv;
+      freshConv.visitor = conv.visitor || freshConv.visitor;
+      freshConv.visitor_ip = conv.visitor_ip || freshConv.visitor_ip;
+      freshConv.visitor_name = conv.visitor_name || freshConv.visitor_name;
+      freshConv.visitor_email = conv.visitor_email || freshConv.visitor_email;
+      if (!freshConv.messages) freshConv.messages = [];
+      if (!freshConv.messages.some(m => m.id === newMsg.id)) {
+        freshConv.messages.push(newMsg);
+      }
 
-      // If user switched to human while AI was computing, discard stale AI message
-      if (freshConv.mode === 'human') {
+      // If a real human agent claimed the chat while AI was computing, discard stale AI message
+      if (freshConv.assigned_agent_id || freshConv.assigned_agent_name) {
         return NextResponse.json({
           success: true,
           message: newMsg,

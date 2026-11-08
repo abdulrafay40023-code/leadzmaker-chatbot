@@ -1,8 +1,27 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { getWebsiteConfig, GEMINI_API_KEYS } from './websites-config';
 
+const HIGH_CURRENCY_COUNTRIES = new Set([
+  'US', 'GB', 'UK', 'CA', 'AU', 'NZ', 'IE',
+  'DE', 'FR', 'NL', 'BE', 'AT', 'IT', 'ES', 'PT', 'FI', 'GR', 'LU',
+  'CH', 'SE', 'NO', 'DK', 'IS',
+  'AE', 'SA', 'QA', 'KW', 'BH', 'OM',
+  'SG', 'JP', 'KR', 'HK', 'TW', 'IL', 'BN', 'BS', 'KY', 'BM'
+]);
+
+export function isHighCurrencyCountry(countryCode?: string | null): boolean {
+  const code = (countryCode || '').toUpperCase().trim();
+  if (!code || code === 'UN') return false;
+  return HIGH_CURRENCY_COUNTRIES.has(code);
+}
+
 export function isHumanHandoffRequested(text: string): boolean {
   const clean = (text || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+
+  // Do not trigger handoff if user is talking about "real estate agent" or "insurance agent"
+  if (clean.includes('real estate agent') || clean.includes('insurance agent') || clean.includes('travel agent')) {
+    return false;
+  }
 
   // 1. Direct explicit phrases (English, Urdu, Roman Urdu)
   const directPhrases = [
@@ -15,14 +34,14 @@ export function isHumanHandoffRequested(text: string): boolean {
     'real support', 'insan se baat', 'bande se baat', 'bndey sy baat', 'bnde se baat', 'bndy se baat',
     'real banda', 'real bndey', 'actual person', 'actual human', 'agent chahiye', 'insan chahiye',
     'human support', 'transfer to agent', 'transfer to human', 'connect with human',
-    'agent se baat', 'live representative', 'customer service agent', 'representative'
+    'agent se baat', 'live representative', 'customer service agent'
   ];
 
   if (directPhrases.some(p => clean.includes(p))) return true;
 
-  // 2. Action + Target keywords combination
-  const humanKeywords = ['human', 'real agent', 'live agent', 'agent', 'person', 'someone', 'representative', 'rep', 'insan', 'banda', 'bnda', 'bndey'];
-  const actionKeywords = ['talk', 'speak', 'connect', 'transfer', 'switch', 'reach', 'chat with', 'baat'];
+  // 2. Action + Support Human target combination
+  const humanKeywords = ['human', 'real agent', 'live agent', 'support agent', 'real person', 'representative', 'insan', 'banda', 'bnda', 'bndey'];
+  const actionKeywords = ['talk to', 'speak to', 'speak with', 'connect to', 'connect with', 'transfer to', 'chat with', 'baat'];
 
   const hasAction = actionKeywords.some(a => clean.includes(a));
   const hasHuman = humanKeywords.some(h => clean.includes(h));
@@ -81,11 +100,15 @@ function sanitizeEmDashes(text: string): string {
 export async function generateAIChatResponse({
   messages,
   visitorName,
+  visitorCountry,
+  visitorCountryCode,
   property = 'leadzmaker',
   hostname
 }: {
   messages: { role: 'user' | 'model'; content: string }[];
   visitorName?: string;
+  visitorCountry?: string;
+  visitorCountryCode?: string;
   property?: string;
   hostname?: string;
 }): Promise<{ text: string; handoffRequired: boolean }> {
@@ -115,8 +138,9 @@ export async function generateAIChatResponse({
     };
   }
 
-  // 3. Greetings (expanded — catch "hey bro", "hello there", "salam", etc.)
-  if (/^(hey|hi|hello|heyy|salam|aoa|hola|good morning|good afternoon|good evening|hey bro|hi there|hello there|heyy bro|what'?s up|sup|yo)(\s.*)?$/i.test(lower)) {
+  // 3. Pure Greetings ONLY (only when the message is just a greeting, NOT when followed by a question!)
+  const cleanGreeting = lower.replace(/[!?.]+$/g, '').trim();
+  if (/^(hey|hi|hello|heyy|salam|assalam o alaikum|aoa|hola|good morning|good afternoon|good evening|hey bro|hi there|hello there|heyy bro|what'?s up|sup|yo|how are you|how are u)$/i.test(cleanGreeting)) {
     return {
       text: cleanName ? `Hey ${cleanName}, how can i help you today ?` : 'Hey, how can i help you today ?',
       handoffRequired: false
@@ -124,22 +148,31 @@ export async function generateAIChatResponse({
   }
 
   // 4. Status checks & quick acknowledgements
-  if (/^(fine|good|great|doing good|doing well|i am good|i am fine|all good|thk|theek|alright|ok|okay)$/i.test(lower)) {
+  if (/^(fine|good|great|doing good|doing well|i am good|i am fine|all good|thk|theek|alright|ok|okay)$/i.test(cleanGreeting)) {
     return {
-      text: appendAgentHandoffNotice(`Glad to hear that! How can I help you regarding our ${siteConfig.shortName} services or packages today?`),
+      text: appendAgentHandoffNotice(`Glad to hear that! How can I help you regarding our ${siteConfig.shortName} lead generation platform or pricing plans today?`),
       handoffRequired: false
     };
   }
 
   // 5. Quick appreciations / short affirmations
-  if (/^(thanks|thank you|shukriya|thx|cool|nice|ok bro|alright bro|done|got it)$/i.test(lower)) {
+  if (/^(thanks|thank you|shukriya|thx|cool|nice|ok bro|alright bro|done|got it)$/i.test(cleanGreeting)) {
     return {
       text: appendAgentHandoffNotice(`You're very welcome! Feel free to ask any other questions about ${siteConfig.name} or our live support.`),
       handoffRequired: false
     };
   }
 
-  const systemPrompt = siteConfig.systemPrompt + (cleanName ? `\nThe visitor's name is "${cleanName}". Address them warmly by name when appropriate.` : '');
+  const highCurrency = isHighCurrencyCountry(visitorCountryCode);
+  const countryLabel = visitorCountry || visitorCountryCode || 'Unknown';
+  const visitorEligibilityPrompt = highCurrency
+    ? `\nVISITOR LOCATION & FREE TRIAL CONTEXT:\n- Visitor Location: ${countryLabel} (${visitorCountryCode || 'High-Currency Region'}).\n- Eligibility: THIS VISITOR IS IN A HIGH-CURRENCY COUNTRY AND GETS 5 FREE LEADS (0/5 Free Leads) ON SIGNUP!\n- Whenever they ask how to extract leads, about free trials, or how LeadzMaker works, tell them they can claim 5 Free Leads right away in their dashboard (https://leadzmaker.com/dashboard) by selecting any Country, State/Region, and Business Category/Niche and clicking "Start Scan". After using their 5 free leads, they can upgrade to a paid plan ($9.99/mo Starter for 200 leads, $29.99/mo Growth for 700 leads, or $59.99/mo Pro for 1,600 leads) at https://leadzmaker.com/pricing.`
+    : `\nVISITOR LOCATION & PAID PLAN CONTEXT:\n- Visitor Location: ${countryLabel} (${visitorCountryCode || 'Standard Region'}).\n- Eligibility: THIS VISITOR IS NOT IN A HIGH-CURRENCY FREE TRIAL REGION. Free trial leads are NOT available for their region.\n- Whenever they ask how to extract leads, about free trials, or how LeadzMaker works, first explain clearly and concisely how leads are extracted on LeadzMaker (go to https://leadzmaker.com/dashboard, select ANY Country and State/Region worldwide, enter ANY Business Category/Niche, and click "Start Scan" to get verified businesses without websites), AND clearly inform them that to extract leads they need to purchase a paid plan at https://leadzmaker.com/pricing (Starter $9.99/mo for 200 leads, Growth $29.99/mo for 700 leads, or Pro $59.99/mo for 1,600 leads). With a paid plan, they can extract leads from ANY country and ANY business niche in the world!`;
+
+  const systemPrompt =
+    siteConfig.systemPrompt +
+    (cleanName ? `\nThe visitor's name is "${cleanName}". Address them warmly by name.` : '') +
+    visitorEligibilityPrompt;
   
   // Fast active Gemini models (verified 200 OK)
   const modelsToTry = ['gemini-3.6-flash', 'gemini-3.5-flash-lite', 'gemini-flash-lite-latest', 'gemini-flash-latest'];
