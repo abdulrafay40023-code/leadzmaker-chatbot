@@ -217,6 +217,9 @@ class GranularStore {
   readonly todayIps = new Map<string, Set<string>>();
   private totalViews = 0;
   private storageLoaded = false;
+  private lastStorageSync = 0;
+  private readonly fileUpdatedAt = new Map<string, string>();
+  private readonly lastSessionUploadAt = new Map<string, number>();
   private agentsLastSync = 0;
 
   constructor() {
@@ -256,14 +259,20 @@ class GranularStore {
   async saveSession(session: StoreVisitorSession): Promise<StoreVisitorSession> {
     this.sessionCache.set(session.id, session);
     
-    const key = `sessions/${sanitizeKey(session.id)}.json`;
-    try {
-      await supabaseAdmin.storage.from(BUCKET).upload(key, JSON.stringify(session), {
-        upsert: true,
-        contentType: 'application/json'
-      });
-    } catch (e) {
-      console.error('Cloud save session error:', e);
+    const now = Date.now();
+    const lastUpload = this.lastSessionUploadAt.get(session.id) || 0;
+    // Only upload session heartbeat to cloud storage once every 60s to prevent Supabase egress drain
+    if (now - lastUpload >= 60000) {
+      this.lastSessionUploadAt.set(session.id, now);
+      const key = `sessions/${sanitizeKey(session.id)}.json`;
+      try {
+        await supabaseAdmin.storage.from(BUCKET).upload(key, JSON.stringify(session), {
+          upsert: true,
+          contentType: 'application/json'
+        });
+      } catch (e) {
+        console.error('Cloud save session error:', e);
+      }
     }
 
     return session;
@@ -279,6 +288,7 @@ class GranularStore {
 
   async getConversation(convId: string): Promise<StoreConversation | null> {
     let conv = this.convCache.get(convId) || null;
+    if (conv) return conv;
 
     try {
       const key = `conversations/${sanitizeKey(convId)}.json`;
@@ -374,8 +384,16 @@ class GranularStore {
   }
 
   private async ensureStorageLoaded(): Promise<void> {
+    const now = Date.now();
+    // Only sync from cloud storage at most once every 30s (or on cold start) to prevent Supabase Storage egress spikes
+    if (this.storageLoaded && now - this.lastStorageSync < 30000) {
+      return;
+    }
+    this.lastStorageSync = now;
+    this.storageLoaded = true;
+
     try {
-      // 1. Sync conversations from bucket
+      // 1. Sync conversations from bucket (only download files whose updated_at changed)
       const { data: cFiles } = await supabaseAdmin.storage.from(BUCKET).list('conversations', { limit: 1000 });
       const currentConvNames = new Set((cFiles || []).map(f => f.name.replace('.json', '')));
       
@@ -387,11 +405,17 @@ class GranularStore {
       }
 
       if (cFiles && cFiles.length > 0) {
-        await Promise.all(cFiles.map(async (f) => {
+        const changedConvs = cFiles.filter(f => {
+          const stamp = f.updated_at || f.created_at || 'v1';
+          return this.fileUpdatedAt.get(`conversations/${f.name}`) !== stamp;
+        });
+
+        await Promise.all(changedConvs.map(async (f) => {
           try {
             const id = f.name.replace('.json', '');
             const { data } = await supabaseAdmin.storage.from(BUCKET).download(`conversations/${f.name}`);
             if (data) {
+              this.fileUpdatedAt.set(`conversations/${f.name}`, f.updated_at || f.created_at || 'v1');
               const text = await parseStorageData(data);
               if (text) {
                 const c: StoreConversation = JSON.parse(text);
@@ -416,7 +440,7 @@ class GranularStore {
         }));
       }
 
-      // 2. Sync sessions from bucket
+      // 2. Sync sessions from bucket (only download files whose updated_at changed)
       const { data: sFiles } = await supabaseAdmin.storage.from(BUCKET).list('sessions', { limit: 1000 });
       const currentSessNames = new Set((sFiles || []).map(f => f.name.replace('.json', '')));
 
@@ -428,10 +452,16 @@ class GranularStore {
       }
 
       if (sFiles && sFiles.length > 0) {
-        await Promise.all(sFiles.map(async (f) => {
+        const changedSessions = sFiles.filter(f => {
+          const stamp = f.updated_at || f.created_at || 'v1';
+          return this.fileUpdatedAt.get(`sessions/${f.name}`) !== stamp;
+        });
+
+        await Promise.all(changedSessions.map(async (f) => {
           try {
             const { data } = await supabaseAdmin.storage.from(BUCKET).download(`sessions/${f.name}`);
             if (data) {
+              this.fileUpdatedAt.set(`sessions/${f.name}`, f.updated_at || f.created_at || 'v1');
               const text = await parseStorageData(data);
               if (text) {
                 const s: StoreVisitorSession = JSON.parse(text);
@@ -662,9 +692,9 @@ class GranularStore {
     // Ensure Master Admin is always in memory cache
     this.agents.set(adminAbdulRafay.email.toLowerCase(), adminAbdulRafay);
 
-    // Fast-path: return from memory if synced recently (< 3 seconds) and we have data
+    // Fast-path: return from memory if synced recently (< 60 seconds) and we have data
     const now = Date.now();
-    if (now - this.agentsLastSync < 3000 && this.agents.size > 0) {
+    if (now - this.agentsLastSync < 60000 && this.agents.size > 0) {
       return Array.from(this.agents.values());
     }
 
